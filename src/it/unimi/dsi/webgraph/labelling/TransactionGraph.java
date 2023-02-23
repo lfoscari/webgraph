@@ -49,7 +49,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	/**
 	 * The default label prototype.
 	 */
-	public static final Label DEFAULT_LABEL_PROTOTYPE = new GammaCodedIntLabel("FOO");
+	public static final Label DEFAULT_LABEL_PROTOTYPE = new GammaCodedIntLabel("transaction-id");
 	/**
 	 * The default label mapping function.
 	 */
@@ -85,14 +85,16 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 		// Inputs and outputs are in the form: <address> <transaction> and sorted by transaction.
 
-		// WE NEED AN ADDRESSMAP TO AVOID USING QUINTILLION BYTES ON SAVING A MAP MADE ON THE FLY.
+		// WE *NEED* AN ADDRESSMAP TO AVOID USING QUINTILLION BYTES ON SAVING A MAP MADE ON THE FLY.
 		// TODO: add some fault tolerance to wrongly formatted inputs or outputs
+		// TODO: better to do equals on transaction as strings or as ints considering that we have to map them (in which case we would need a mapping function)?
+		// TODO: make a returnAddressAndTransaction something method to return Pair of address and transaction to better handle the malformed data
 
-		int j = 0;
+		int j = 0, addressId, outputCount = -1, inputCount = -1;
 		long pairs = 0; // Number of pairs
 
 		int[] source = new int[batchSize], target = new int[batchSize];
-		final long[] labelStart = new long[batchSize];
+		long[] start = new long[batchSize];
 
 		FastByteArrayOutputStream fbos = new FastByteArrayOutputStream();
 		OutputBitStream obs = new OutputBitStream(fbos);
@@ -100,52 +102,84 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		final ObjectArrayList<File> labelBatches = new ObjectArrayList<>();
 		final Label prototype = labelPrototype.copy();
 
-		String transaction;
-		MutableString outputLine, inputLine = null, matchingOutputLine = null;
-		IntArrayList outputAddresses = IntArrayList.of(), inputAddresses = IntArrayList.of();
+		CharSequence transaction, lineTransaction;
+		MutableString outputLine = null, inputLine = null;
+		IntArrayList outputAddresses = new IntArrayList(), inputAddresses = new IntArrayList();
 
 		while (outputs.hasNext()) {
-			outputLine = outputs.next().trim();
-			transaction = getTransaction(outputLine).toString();
-
+			inputAddresses.clear();
 			outputAddresses.clear();
-			outputAddresses.add(getAddressId(outputLine, addressMap));
 
-			while (outputs.hasNext() || matchingOutputLine != null) {
-				if (matchingOutputLine == null) {
-					matchingOutputLine = outputs.next().trim();
+			if (outputLine == null) {
+				outputLine = outputs.next().trim();
+				outputCount++;
+			}
+
+			lineTransaction = getTransaction(outputLine);
+			if (lineTransaction == null) {
+				LOGGER.error("Malformed output at line " + outputCount);
+				outputLine = null;
+				continue;
+			}
+
+			transaction = lineTransaction.toString();
+
+			addressId = getAddressId(outputLine, addressMap);
+			if (addressId < 0 || addressId >= numNodes) {
+				throw new IllegalArgumentException("Address id out of range for output at line " + outputCount + " (id: " + addressId + ")");
+			}
+			outputAddresses.add(addressId);
+
+			while (outputs.hasNext()) {
+				outputLine = outputs.next().trim();
+				outputCount++;
+
+				lineTransaction = getTransaction(outputLine);
+				if (lineTransaction == null) {
+					LOGGER.error("Malformed output at line " + outputCount);
+					outputLine = null;
+					continue;
 				}
 
-				if (!getTransaction(matchingOutputLine).equals(transaction)) {
+				if (!lineTransaction.equals(transaction)) {
 					break;
 				}
 
-				outputAddresses.add(getAddressId(matchingOutputLine, addressMap));
-				matchingOutputLine = null;
+				addressId = getAddressId(outputLine, addressMap);
+				if (addressId < 0 || addressId >= numNodes) {
+					throw new IllegalArgumentException("Address id out of range for output at line " + outputCount + " (id: " + addressId + ")");
+				}
+				outputAddresses.add(addressId);
+				outputLine = null;
 			}
 
 			// {outputAddresses} contains all output addresses for the {transaction} transaction
 			// Find all the input addresses and add their ids to {inputAddresses}
 
-			inputAddresses.clear();
-
-			while (inputs.hasNext() || inputLine != null) {
+			while (inputs.hasNext()) {
 				if (inputLine == null) {
 					inputLine = inputs.next().trim();
+					inputCount++;
 				}
 
-				if (!getTransaction(inputLine).equals(transaction)) {
+				lineTransaction = getTransaction(inputLine);
+				if (lineTransaction == null) {
+					LOGGER.error("Malformed input at line " + inputCount);
+					inputLine = null;
+					continue;
+				}
+
+				if (!lineTransaction.equals(transaction)) {
 					break;
 				}
 
-				inputAddresses.add(getAddressId(inputLine, addressMap));
+				addressId = getAddressId(inputLine, addressMap);
+				if (addressId < 0 || addressId >= numNodes) {
+					throw new IllegalArgumentException("Address id out of range for input at line " + inputCount + " (id: " + addressId + ")");
+				}
+				inputAddresses.add(addressId);
 				inputLine = null;
 			}
-
-			System.out.println("Transaction " + transaction +
-					"\nInputs: " + inputAddresses +
-					"\nOutputs: " + outputAddresses
-			);
 
 			// Set the label as the transaction
 			labelMapping.apply(prototype, transaction);
@@ -153,15 +187,19 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 			for (int s: inputAddresses) {
 				for (int t: outputAddresses) {
+					if (s == t) {
+						continue;
+					}
+
 					source[j] = s;
 					target[j] = t;
-					labelStart[j] = obs.writtenBits();
+					start[j] = obs.writtenBits();
 					prototype.toBitStream(obs, s);
 					j++;
 
 					if (j == batchSize) {
 						obs.flush();
-						pairs += processTransposeBatch(batchSize, source, target, labelStart, new InputBitStream(fbos.array), tempDir, batches, labelBatches, prototype, null);
+						pairs += processTransposeBatch(batchSize, source, target, start, new InputBitStream(fbos.array), tempDir, batches, labelBatches, prototype, null);
 						fbos = new FastByteArrayOutputStream();
 						obs = new OutputBitStream(fbos);
 						j = 0;
@@ -174,9 +212,13 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			}
 		}
 
+		if (inputs.hasNext()) {
+			LOGGER.error("Some inputs were not associated to any output");
+		}
+
 		if (j != 0) {
 			obs.flush();
-			pairs += processTransposeBatch(j, source, target, labelStart, new InputBitStream(fbos.array), tempDir, batches, labelBatches, prototype, null);
+			pairs += processTransposeBatch(j, source, target, start, new InputBitStream(fbos.array), tempDir, batches, labelBatches, prototype, null);
 		}
 
 		if (pl != null) {
@@ -186,23 +228,22 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 		source = null;
 		target = null;
+		start = null;
 
-		System.out.println(" pairs=" + pairs);
 		this.arcLabelledBatchGraph = new Transform.ArcLabelledBatchGraph(numNodes, pairs, batches, labelBatches, prototype, null);
 	}
 
 	protected static CharSequence getTransaction(final MutableString line) {
 		final int middle = line.lastIndexOf(SEPARATOR);
+		if (middle == -1) return null;
 		return line.subSequence(middle + 1, line.length());
 	}
 
-	protected static CharSequence getAddress(final MutableString line) {
-		final int middle = line.indexOf(SEPARATOR);
-		return line.subSequence(0, middle);
-	}
-
 	protected static int getAddressId(final MutableString line, Object2IntFunction<? extends CharSequence> addressMap) {
-		return addressMap.getInt(getAddress(line));
+		final int middle = line.indexOf(SEPARATOR);
+		if (middle == -1) return -1;
+		CharSequence address = line.subSequence(0, middle);
+		return addressMap.getInt(address);
 	}
 
 	protected static void logBatches(final ObjectArrayList<File> batches, final long pairs, final ProgressLogger pl) {
