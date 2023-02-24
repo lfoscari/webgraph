@@ -119,8 +119,21 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 					}
 				} while (skipWhitespace() == -1);
 
-				// Scan address.
+				// Scan transaction.
 				int start = offset;
+				while(offset < lineLength && (array[offset] < 0 || array[offset] > ' ')) offset++;
+
+				final String currentTransaction = new String(array, start, offset - start, charset);
+
+				if (DEBUG) {
+					System.err.println("Parsed transaction at line " + line + ": " + transaction);
+				}
+
+				// Skip whitespace between identifiers.
+				skipWhitespace();
+
+				// Scan address.
+				start = offset;
 				while(offset < lineLength && (array[offset] < 0 || array[offset] > ' ')) offset++;
 
 				final String address = new String(array, start, offset - start, charset);
@@ -137,19 +150,6 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 				if (DEBUG) {
 					System.err.println("Parsed address at line " + line + ": " + address + " => " + addressId);
-				}
-
-				// Skip whitespace between identifiers.
-				skipWhitespace();
-
-				// Scan transaction.
-				start = offset;
-				while(offset < lineLength && (array[offset] < 0 || array[offset] > ' ')) offset++;
-
-				final String currentTransaction = new String(array, start, offset - start, charset);
-
-				if (DEBUG) {
-					System.err.println("Parsed transaction at line " + line + ": " + transaction);
 				}
 
 				if (previousTransaction == null) {
