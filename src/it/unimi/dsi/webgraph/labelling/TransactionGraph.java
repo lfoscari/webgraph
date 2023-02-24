@@ -19,14 +19,18 @@ package it.unimi.dsi.webgraph.labelling;
 
 import it.unimi.dsi.Util;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.io.FastByteArrayOutputStream;
 import it.unimi.dsi.fastutil.objects.Object2IntFunction;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.io.FastBufferedReader;
 import it.unimi.dsi.io.InputBitStream;
 import it.unimi.dsi.io.LineIterator;
 import it.unimi.dsi.io.OutputBitStream;
 import it.unimi.dsi.lang.MutableString;
 import it.unimi.dsi.logging.ProgressLogger;
+import it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction;
+import it.unimi.dsi.webgraph.BVGraph;
 import it.unimi.dsi.webgraph.ImmutableSequentialGraph;
 import it.unimi.dsi.webgraph.Transform;
 import it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.LabelMapping;
@@ -34,7 +38,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Path;
 
 import static it.unimi.dsi.webgraph.Transform.processTransposeBatch;
 
@@ -61,7 +68,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	/**
 	 * TODO
 	 */
-	private static final char SEPARATOR = ' ';
+	private static final char SEPARATOR = '\t';
 	/**
 	 * The labelled batch graph used to return node iterators.
 	 */
@@ -86,9 +93,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		// Inputs and outputs are in the form: <address> <transaction> and sorted by transaction.
 
 		// WE *NEED* AN ADDRESSMAP TO AVOID USING QUINTILLION BYTES ON SAVING A MAP MADE ON THE FLY.
-		// TODO: add some fault tolerance to wrongly formatted inputs or outputs
 		// TODO: better to do equals on transaction as strings or as ints considering that we have to map them (in which case we would need a mapping function)?
-		// TODO: make a returnAddressAndTransaction something method to return Pair of address and transaction to better handle the malformed data
 
 		int j = 0, addressId, outputCount = -1, inputCount = -1;
 		long pairs = 0; // Number of pairs
@@ -183,7 +188,6 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 			// Set the label as the transaction
 			labelMapping.apply(prototype, transaction);
-			// TODO: write the transaction only once?
 
 			for (int s: inputAddresses) {
 				for (int t: outputAddresses) {
@@ -297,6 +301,41 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			ms.append("\n");
 		}
 		return ms.toString();
+	}
+
+	public static void main(String[] args) throws IOException, ClassNotFoundException {
+		Path resources = Path.of("/mnt/extra/analysis/lfoscari");
+		Path artifacts = resources.resolve("artifacts");
+		Path inputsFile = resources.resolve("inputs.tsv");
+		Path outputsFile = resources.resolve("outputs.tsv");
+		Path graphDir = resources.resolve("graph-labelled");
+
+		LineIterator inputs = new LineIterator(new FastBufferedReader(new FileReader(inputsFile.toFile())));
+		LineIterator outputs = new LineIterator(new FastBufferedReader(new FileReader(outputsFile.toFile())));
+
+		GOVMinimalPerfectHashFunction<MutableString> transactionsMap = (GOVMinimalPerfectHashFunction<MutableString>)
+				BinIO.loadObject(artifacts.resolve("transactions.map").toFile());
+		GOVMinimalPerfectHashFunction<MutableString> addressMap = (GOVMinimalPerfectHashFunction<MutableString>)
+				BinIO.loadObject(artifacts.resolve("addresses.map").toFile());
+		int numNodes = (int) addressMap.size64();
+
+		Object2IntFunction<? extends CharSequence> addressFunction = (a) -> (int) addressMap.getLong(a);
+
+		Label prototype = new GammaCodedIntLabel("transaction-id");
+		LabelMapping labelMapping = (l, s) -> ((GammaCodedIntLabel) l).value = (int) transactionsMap.getLong(s);
+
+		int batchSize = 10000;
+		File tempDir = File.createTempFile(resources.toString(), ".transactiongraph");
+
+		Logger logger = LoggerFactory.getLogger(TransactionGraph.class);
+		ProgressLogger pl = new ProgressLogger(logger, "transactions");
+
+		TransactionGraph graph = new TransactionGraph(
+				inputs, outputs, addressFunction, numNodes,
+				prototype, labelMapping, batchSize, tempDir, pl
+		);
+
+		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString());
 	}
 }
 
