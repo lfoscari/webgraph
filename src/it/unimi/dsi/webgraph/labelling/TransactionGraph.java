@@ -19,7 +19,9 @@ package it.unimi.dsi.webgraph.labelling;
 
 import it.unimi.dsi.Util;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
+import it.unimi.dsi.fastutil.chars.CharSets;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
 import it.unimi.dsi.fastutil.io.FastByteArrayOutputStream;
 import it.unimi.dsi.fastutil.objects.Object2IntFunction;
@@ -28,6 +30,8 @@ import it.unimi.dsi.io.InputBitStream;
 import it.unimi.dsi.io.OutputBitStream;
 import it.unimi.dsi.lang.MutableString;
 import it.unimi.dsi.logging.ProgressLogger;
+import it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction;
+import it.unimi.dsi.webgraph.BVGraph;
 import it.unimi.dsi.webgraph.ImmutableSequentialGraph;
 import it.unimi.dsi.webgraph.Transform;
 import it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.LabelMapping;
@@ -37,6 +41,9 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 import static it.unimi.dsi.fastutil.io.FastBufferedInputStream.*;
 import static it.unimi.dsi.webgraph.Transform.processTransposeBatch;
@@ -82,8 +89,8 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 		private final IntArrayList addresses = IntArrayList.of();
 
-		private String previousTransaction;
-		private String nextTransaction = null;
+		private byte[] previousTransaction;
+		private byte[] nextTransaction = null;
 		private int nextAddressId = -1;
 
 		private int lineLength;
@@ -100,7 +107,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 		public IntArrayList nextAddresses() throws IOException {
 			addresses.clear();
-			String transaction = null;
+			byte[] transaction = null;
 
 			if (nextTransaction != null) {
 				transaction = nextTransaction;
@@ -123,10 +130,10 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 				int start = offset;
 				while(offset < lineLength && (array[offset] < 0 || array[offset] > ' ')) offset++;
 
-				final String currentTransaction = new String(array, start, offset - start, charset);
+				final byte[] currentTransaction = Arrays.copyOfRange(array, start, offset - start);
 
 				if (DEBUG) {
-					System.err.println("Parsed transaction at line " + line + ": " + transaction);
+					System.err.println("Parsed transaction at line " + line + ": " + new String(currentTransaction, charset));
 				}
 
 				// Skip whitespace between identifiers.
@@ -136,6 +143,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 				start = offset;
 				while(offset < lineLength && (array[offset] < 0 || array[offset] > ' ')) offset++;
 
+				// TODO: switch to using the array method to get the keys from the map
 				final String address = new String(array, start, offset - start, charset);
 				final int addressId = addressMap.getInt(address);
 
@@ -159,7 +167,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 				if (transaction == null) {
 					transaction = currentTransaction;
 					addresses.add(addressId);
-				} else if (currentTransaction.equals(transaction)) {
+				} else if (Arrays.equals(currentTransaction, transaction)) {
 					addresses.add(addressId);
 				} else {
 					nextTransaction = currentTransaction;
@@ -169,14 +177,6 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			}
 
 			return addresses;
-		}
-
-		public String transaction() {
-			return previousTransaction;
-		}
-
-		public int line() {
-			return line;
 		}
 
 		private int skipWhitespace() {
@@ -195,6 +195,14 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			if (len == -1) return -1; // EOF
 			return start + len;
 		}
+
+		public byte[] transaction() {
+			return previousTransaction;
+		}
+
+		public int line() {
+			return line;
+		}
 	}
 
 	public TransactionGraph(
@@ -209,10 +217,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			final File tempDir,
 			final ProgressLogger pl) throws IOException {
 
-		// Inputs and outputs are in the form: <address> <transaction> and sorted by transaction.
-
-		// WE *NEED* AN ADDRESSMAP TO AVOID USING QUINTILLION BYTES ON SAVING A MAP MADE ON THE FLY.
-		// TODO: better to do equals on transaction as strings or as ints considering that we have to map them (in which case we would need a mapping function)?
+		// Inputs and outputs are in the form: <transaction> <address> and sorted by transaction.
 
 		if (charset == null) {
 			charset = StandardCharsets.ISO_8859_1;
@@ -246,14 +251,14 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 				break;
 			}
 
-			String transaction = outputs.transaction();
+			byte[] transaction = outputs.transaction();
 
-			if (!inputs.transaction().equals(transaction)) {
+			if (!Arrays.equals(inputs.transaction(), transaction)) {
 				throw new RuntimeException("Inconsistency in inputs and outputs at output line " + outputs.line() + " and input line " + inputs.line());
 			}
 
 			// Set the label as the transaction
-			labelMapping.apply(prototype, transaction);
+			labelMapping.apply(prototype, new String(transaction, charset));
 
 			for (int s: inputAddresses) {
 				for (int t: outputAddresses) {
@@ -352,15 +357,12 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		return ms.toString();
 	}
 
-	/* public static void main(String[] args) throws IOException, ClassNotFoundException {
+	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		Path resources = new File("/mnt/extra/analysis/lfoscari").toPath();
 		Path artifacts = resources.resolve("artifacts");
 		Path inputsFile = resources.resolve("inputs.tsv");
 		Path outputsFile = resources.resolve("outputs.tsv");
 		Path graphDir = resources.resolve("graph-labelled");
-
-		LineIterator inputs = new LineIterator(new FastBufferedReader(new FileReader(inputsFile.toFile())));
-		LineIterator outputs = new LineIterator(new FastBufferedReader(new FileReader(outputsFile.toFile())));
 
 		GOVMinimalPerfectHashFunction<MutableString> transactionsMap = (GOVMinimalPerfectHashFunction<MutableString>)
 				BinIO.loadObject(artifacts.resolve("transactions.map").toFile());
@@ -374,8 +376,8 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		Logger logger = LoggerFactory.getLogger(TransactionGraph.class);
 		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
 
-		TransactionGraph graph = new TransactionGraph(inputs, outputs, addressFunction, numNodes, DEFAULT_LABEL_PROTOTYPE, labelMapping, DEFAULT_BATCH_SIZE, null, pl);
+		TransactionGraph graph = new TransactionGraph(new FileInputStream(inputsFile.toFile()), new FileInputStream(outputsFile.toFile()),
+				addressFunction, null, numNodes, DEFAULT_LABEL_PROTOTYPE, labelMapping, DEFAULT_BATCH_SIZE, null, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString());
-	} */
+	}
 }
-
