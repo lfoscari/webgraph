@@ -19,7 +19,6 @@ package it.unimi.dsi.webgraph.labelling;
 
 import it.unimi.dsi.Util;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
-import it.unimi.dsi.fastutil.chars.CharSets;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
@@ -52,6 +51,12 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TransactionGraph.class);
 	private final static boolean DEBUG = true;
 
+
+	// Stats:
+	// - # of inputs and outputs
+	// - # of duplicates inputs and outputs
+	// - 
+
 	/**
 	 * The default batch size.
 	 */
@@ -81,123 +86,120 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	 */
 	public long[] ids;
 
-	public static class ReadTransactions {
+	private static class ReadTransactions {
 		private final FastBufferedInputStream stream;
 		private final Charset charset;
 		private final int numNodes;
 		private final Object2IntFunction<? extends CharSequence> addressMap;
 
-		private final IntArrayList addresses = IntArrayList.of();
-
-		private byte[] previousTransaction;
-		private byte[] nextTransaction = null;
-		private int nextAddressId = -1;
+		private final IntArrayList addresses = new IntArrayList(512);
 
 		private int lineLength;
 		private int offset;
-		private byte[] array = new byte[1024];
 		private int line = 1;
+		private int transactionStart = -1, transactionEnd = -1;
+		private byte[] previousLine = new byte[1024];
+		private byte[] currentLine = new byte[1024];
 
-		public ReadTransactions(FastBufferedInputStream stream, final Charset charset, final int numNodes, final Object2IntFunction<? extends CharSequence> addressMap) {
+		public ReadTransactions(FastBufferedInputStream stream, final Charset charset, final int numNodes, final Object2IntFunction<? extends CharSequence> addressMap) throws IOException {
 			this.stream = stream;
 			this.charset = charset;
 			this.numNodes = numNodes;
 			this.addressMap = addressMap;
+
+			do {
+				lineLength = readLine(previousLine);
+			} while (skipWhitespace(previousLine) == -1);
 		}
 
 		public IntArrayList nextAddresses() throws IOException {
 			addresses.clear();
-			byte[] transaction = null;
 
-			if (nextTransaction != null) {
-				transaction = nextTransaction;
-				addresses.add(nextAddressId);
-				nextTransaction = null;
-				nextAddressId = -1;
+			if (lineLength == -1) {
+				return addresses;
 			}
+
+			offset = 0;
+			skipWhitespace(previousLine);
+
+			// Scan transaction.
+			int start = offset;
+			while(offset < lineLength && (previousLine[offset] < 0 || previousLine[offset] > ' ')) offset++;
+
+			// Save the boundaries of the transaction in previousLine
+			transactionStart = start;
+			transactionEnd = offset - start;
+
+			// Add previousLine address to address list
+			offset = transactionEnd;
+			addAddressFromLine(previousLine);
 
 			for (;; line++) {
+				// Now keep reading lines into currentLine until the transaction matches previousLine
 				offset = 0;
 
-				// Skip until you find a non-empty line
 				do {
-					if ((lineLength = lineLength()) == -1) {
-						return addresses; // EOF
-					}
-				} while (skipWhitespace() == -1);
+					lineLength = readLine(currentLine);
+				} while (skipWhitespace(currentLine) == -1);
+
+				if (lineLength == -1) {
+					return addresses;
+				}
 
 				// Scan transaction.
-				int start = offset;
-				while(offset < lineLength && (array[offset] < 0 || array[offset] > ' ')) offset++;
-
-				final byte[] currentTransaction = Arrays.copyOfRange(array, start, offset - start);
-
-				if (DEBUG) {
-					System.err.println("Parsed transaction at line " + line + ": " + new String(currentTransaction, charset));
-				}
-
-				// Skip whitespace between identifiers.
-				skipWhitespace();
-
-				// Scan address.
 				start = offset;
-				while(offset < lineLength && (array[offset] < 0 || array[offset] > ' ')) offset++;
+				while(offset < lineLength && (currentLine[offset] < 0 || currentLine[offset] > ' ')) offset++;
 
-				// TODO: switch to using the array method to get the keys from the map
-				final String address = new String(array, start, offset - start, charset);
-				final int addressId = addressMap.getInt(address);
-
-				if (addressId == -1) {
-					LOGGER.warn("Unknown address identifier " + address + " at line " + line);
-					continue;
-				}
-
-				if (addressId < 0 || addressId >= numNodes) {
-					throw new IllegalArgumentException("Address id out of range for node " + addressId + ": " + addressId);
-				}
-
-				if (DEBUG) {
-					System.err.println("Parsed address at line " + line + ": " + address + " => " + addressId);
-				}
-
-				if (previousTransaction == null) {
-					previousTransaction = currentTransaction;
-				}
-
-				if (transaction == null) {
-					transaction = currentTransaction;
-					addresses.add(addressId);
-				} else if (Arrays.equals(currentTransaction, transaction)) {
-					addresses.add(addressId);
-				} else {
-					nextTransaction = currentTransaction;
-					nextAddressId = addressId;
+				// Check if transactions match
+				if (!Arrays.equals(currentLine, start, offset - start, previousLine, transactionStart, transactionEnd)) {
 					break;
 				}
+
+				addAddressFromLine(currentLine);
 			}
+
+			byte[] t = currentLine;
+			currentLine = previousLine;
+			previousLine = t;
 
 			return addresses;
 		}
 
-		private int skipWhitespace() {
-			while(offset < lineLength && array[offset] >= 0 && array[offset] <= ' ') offset++;
-			if (offset == lineLength || array[0] == '#') return -1;
+		private void addAddressFromLine(final byte[] array) {
+			skipWhitespace(array);
+
+			final int start = offset;
+			while(offset < lineLength && (array[offset] < 0 || array[offset] > ' ')) offset++;
+
+			final String address = new String(array, start, offset - start, charset);
+			addresses.add(addressMap.getInt(address));
+		}
+
+		private int skipWhitespace(byte[] dest) {
+			while(offset < lineLength && dest[offset] >= 0 && dest[offset] <= ' ') offset++;
+			if (offset == lineLength || dest[0] == '#') return -1;
 			return offset;
 		}
 
-		private int lineLength() throws IOException {
+		private int readLine(byte[] dest) throws IOException {
 			int start = 0, len;
-			while((len = stream.readLine(array, start, array.length - start, ALL_TERMINATORS)) == array.length - start) {
+			while((len = stream.readLine(dest, start, dest.length - start, ALL_TERMINATORS)) == dest.length - start) {
 				start += len;
-				array = ByteArrays.grow(array, array.length + 1);
+				dest = ByteArrays.grow(dest, dest.length + 1);
 			}
 
 			if (len == -1) return -1; // EOF
 			return start + len;
 		}
 
-		public byte[] transaction() {
-			return previousTransaction;
+		public boolean transactionsMatch(ReadTransactions other) {
+			if (transactionStart == -1) throw new IllegalStateException("You must first read addresses");
+			return Arrays.equals(currentLine, transactionStart, transactionEnd, other.currentLine, other.transactionStart, other.transactionEnd);
+		}
+
+		public String transaction() {
+			if (transactionStart == -1) throw new IllegalStateException("You must first read addresses");
+			return new String(currentLine, transactionStart, transactionEnd, charset);
 		}
 
 		public int line() {
@@ -220,7 +222,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		// Inputs and outputs are in the form: <transaction> <address> and sorted by transaction.
 
 		if (charset == null) {
-			charset = StandardCharsets.ISO_8859_1;
+			charset = StandardCharsets.US_ASCII;
 		}
 
 		final ReadTransactions outputs = new ReadTransactions(new FastBufferedInputStream(outputsIs), charset, numNodes, addressMap);
@@ -251,14 +253,12 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 				break;
 			}
 
-			byte[] transaction = outputs.transaction();
-
-			if (!Arrays.equals(inputs.transaction(), transaction)) {
+			if (!outputs.transactionsMatch(inputs)) {
 				throw new RuntimeException("Inconsistency in inputs and outputs at output line " + outputs.line() + " and input line " + inputs.line());
 			}
 
 			// Set the label as the transaction
-			labelMapping.apply(prototype, new String(transaction, charset));
+			labelMapping.apply(prototype, outputs.transaction());
 
 			for (int s: inputAddresses) {
 				for (int t: outputAddresses) {
@@ -374,10 +374,10 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		LabelMapping labelMapping = (l, s) -> ((GammaCodedIntLabel) l).value = (int) transactionsMap.getLong(s);
 
 		Logger logger = LoggerFactory.getLogger(TransactionGraph.class);
-		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
+		ProgressLogger pl = new ProgressLogger(logger, 10, TimeUnit.MINUTES);
 
 		TransactionGraph graph = new TransactionGraph(new FileInputStream(inputsFile.toFile()), new FileInputStream(outputsFile.toFile()),
-				addressFunction, null, numNodes, DEFAULT_LABEL_PROTOTYPE, labelMapping, DEFAULT_BATCH_SIZE, null, pl);
+				addressFunction, null, numNodes, DEFAULT_LABEL_PROTOTYPE, labelMapping, 100_000_000, null, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString());
 	}
 }
