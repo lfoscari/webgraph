@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
@@ -297,9 +298,9 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			}
 
 			if (!outputs.transactionsMatch(inputs)) {
-				throw new RuntimeException("Inconsistency in inputs and outputs:\n"
-						+ "\toutput [" + outputs.lineNumber() + "]: " + new String(outputs.currentLine) + "\n"
-						+ "\tinput [" + inputs.lineNumber() + "]: " + new String(inputs.currentLine));
+				throw new RuntimeException("Inconsistency in inputs and outputs!\n"
+						+ "\toutput [" + outputs.lineNumber() + "]:\t\"" + new String(outputs.currentLine) + "\"\n"
+						+ "\tinput [" + inputs.lineNumber() + "]:\t\"" + new String(inputs.currentLine) + "\"");
 			}
 
 			// Set the label as the transaction
@@ -403,26 +404,25 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	}
 
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
-		Path resources = new File("/mnt/extra/analysis/lfoscari").toPath();
-		Path artifacts = resources.resolve("artifacts");
-		Path inputsFile = resources.resolve("inputs.tsv");
-		Path outputsFile = resources.resolve("outputs.tsv");
-		Path graphDir = resources.resolve("graph-labelled");
+		Path resources = new File(".").toPath();
+		Path test = resources.resolve("transaction-test");
+		Path artifacts = test;
+		Path inputsFile = test.resolve("inputs.tsv");
+		Path outputsFile = test.resolve("outputs.tsv");
+		Path graphDir = test.resolve("graph-labelled");
+		graphDir.toFile().mkdir();
 
-		GOVMinimalPerfectHashFunction<MutableString> transactionsMap = (GOVMinimalPerfectHashFunction<MutableString>)
-				BinIO.loadObject(artifacts.resolve("transactions.map").toFile());
-		GOVMinimalPerfectHashFunction<MutableString> addressMap = (GOVMinimalPerfectHashFunction<MutableString>)
-				BinIO.loadObject(artifacts.resolve("addresses.map").toFile());
-		int numNodes = (int) addressMap.size64();
-
+		GOVMinimalPerfectHashFunction<MutableString> transactionsMap = (GOVMinimalPerfectHashFunction<MutableString>) BinIO.loadObject(artifacts.resolve("transactions.map").toFile());
+		GOVMinimalPerfectHashFunction<MutableString> addressMap = (GOVMinimalPerfectHashFunction<MutableString>) BinIO.loadObject(artifacts.resolve("addresses.map").toFile());
 		Object2IntFunction<? extends CharSequence> addressFunction = (a) -> (int) addressMap.getLong(a);
-		LabelMapping labelMapping = (l, s) -> ((GammaCodedIntLabel) l).value = (int) transactionsMap.getLong(s);
+		LabelMapping labelMapping = (l, t) -> ((GammaCodedIntLabel) l).value = (int) transactionsMap.getLong(t);
+		int numNodes = (int) addressMap.size64();
 
 		Logger logger = LoggerFactory.getLogger(TransactionGraph.class);
 		ProgressLogger pl = new ProgressLogger(logger, 10, TimeUnit.MINUTES);
 
-		TransactionGraph graph = new TransactionGraph(new FileInputStream(inputsFile.toFile()), new FileInputStream(outputsFile.toFile()),
-				addressFunction, null, numNodes, DEFAULT_LABEL_PROTOTYPE, labelMapping, 100_000_000, null, pl);
+		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, null, numNodes, DEFAULT_LABEL_PROTOTYPE, labelMapping, 50, null, pl);
+		System.out.println(graph);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString());
 	}
 }
