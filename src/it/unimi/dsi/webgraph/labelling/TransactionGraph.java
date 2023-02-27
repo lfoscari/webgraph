@@ -18,12 +18,16 @@
 package it.unimi.dsi.webgraph.labelling;
 
 import it.unimi.dsi.Util;
+import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
 import it.unimi.dsi.fastutil.io.FastByteArrayOutputStream;
 import it.unimi.dsi.fastutil.objects.Object2IntFunction;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.io.InputBitStream;
 import it.unimi.dsi.io.OutputBitStream;
@@ -54,7 +58,35 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	// Stats:
 	// - # of inputs and outputs
 	// - # of duplicates inputs and outputs
-	// - 
+	// -
+
+	private static class Statistics {
+		private final Object2ObjectOpenHashMap<byte[], Pair<Integer, Integer>> amountInputsOutputs = new Object2ObjectOpenHashMap<>();
+		private final Object2ObjectOpenHashMap<byte[], Pair<Integer, Integer>> duplicateInputsOutputs = new Object2ObjectOpenHashMap<>();
+
+		public void update(byte[] transaction, int[] inputAddresses, int[] outputAddresses) {
+			amountInputsOutputs.put(transaction, Pair.of(inputAddresses.length, outputAddresses.length));
+
+			IntArrays.quickSort(inputAddresses);
+			int inputDuplicates = 0;
+			for (int i = 1; i < inputAddresses.length; i++)
+				if (inputAddresses[i] == inputAddresses[i - 1])
+					inputDuplicates++;
+
+			IntArrays.quickSort(outputAddresses);
+			int outputDuplicates = 0;
+			for (int i = 1; i < outputAddresses.length; i++)
+				if (outputAddresses[i] == outputAddresses[i - 1])
+					outputDuplicates++;
+
+			duplicateInputsOutputs.put(transaction, Pair.of(inputDuplicates, outputDuplicates));
+		}
+
+		public void save(File destination) throws IOException {
+			BinIO.storeObject(amountInputsOutputs, destination);
+			BinIO.storeObject(duplicateInputsOutputs, destination);
+		}
+	}
 
 	/**
 	 * The default batch size.
@@ -133,12 +165,13 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			offset = transactionEnd;
 			addAddressFromLine(previousLine);
 
-			for (;; line++) {
+			for (;;) {
 				// Now keep reading lines into currentLine until the transaction matches previousLine
 				offset = 0;
 
 				do {
 					lineLength = readLine(currentLine);
+					line++;
 				} while (skipWhitespace(currentLine) == -1);
 
 				if (lineLength == -1) { // EOF
