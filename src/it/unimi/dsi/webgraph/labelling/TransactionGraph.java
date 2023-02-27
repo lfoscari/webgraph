@@ -20,7 +20,6 @@ package it.unimi.dsi.webgraph.labelling;
 import it.unimi.dsi.Util;
 import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.io.BinIO;
@@ -234,7 +233,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			return new String(currentLine, transactionStart, transactionEnd, charset);
 		}
 
-		public int line() {
+		public int lineNumber() {
 			return line;
 		}
 	}
@@ -286,7 +285,9 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			}
 
 			if (!outputs.transactionsMatch(inputs)) {
-				throw new RuntimeException("Inconsistency in inputs and outputs at output line " + outputs.line() + " and input line " + inputs.line());
+				throw new RuntimeException("Inconsistency in inputs and outputs:"
+						+ "output [" + outputs.lineNumber() + "]: " + new String(outputs.currentLine)
+						+ "input [" + inputs.lineNumber() + "]: " + new String(inputs.currentLine));
 			}
 
 			// Set the label as the transaction
