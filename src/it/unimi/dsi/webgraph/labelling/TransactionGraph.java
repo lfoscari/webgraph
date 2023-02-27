@@ -57,11 +57,20 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	// Stats:
 	// - # of inputs and outputs
 	// - # of duplicates inputs and outputs
-	// -
+	// - ???
 
 	private static class Statistics {
-		private final Object2ObjectOpenHashMap<byte[], Pair<Integer, Integer>> amountInputsOutputs = new Object2ObjectOpenHashMap<>();
-		private final Object2ObjectOpenHashMap<byte[], Pair<Integer, Integer>> duplicateInputsOutputs = new Object2ObjectOpenHashMap<>();
+		private final Object2ObjectOpenHashMap<byte[], Pair<Integer, Integer>> amountInputsOutputs;
+		private final Object2ObjectOpenHashMap<byte[], Pair<Integer, Integer>> duplicateInputsOutputs;
+
+		public Statistics() {
+			this(1024);
+		}
+
+		public Statistics(int transactionAmount) {
+			amountInputsOutputs = new Object2ObjectOpenHashMap<>(transactionAmount);
+			duplicateInputsOutputs = new Object2ObjectOpenHashMap<>(transactionAmount);
+		}
 
 		public void update(byte[] transaction, int[] inputAddresses, int[] outputAddresses) {
 			amountInputsOutputs.put(transaction, Pair.of(inputAddresses.length, outputAddresses.length));
@@ -82,7 +91,10 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		}
 
 		public void save(File destination) throws IOException {
+			amountInputsOutputs.trim();
 			BinIO.storeObject(amountInputsOutputs, destination);
+
+			duplicateInputsOutputs.trim();
 			BinIO.storeObject(duplicateInputsOutputs, destination);
 		}
 	}
@@ -126,7 +138,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 		private int lineLength;
 		private int offset;
-		private int line = 1;
+		private int line = 0;
 		private int transactionStart = -1, transactionEnd = -1;
 		private byte[] previousLine = new byte[1024];
 		private byte[] currentLine = new byte[1024];
@@ -152,7 +164,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			offset = 0;
 			skipWhitespace(previousLine);
 
-			// Scan transaction.
+			// Scan transaction
 			int start = offset;
 			while(offset < lineLength && (previousLine[offset] < 0 || previousLine[offset] > ' ')) offset++;
 
@@ -165,7 +177,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			addAddressFromLine(previousLine);
 
 			for (;;) {
-				// Now keep reading lines into currentLine until the transaction matches previousLine
+				// Now keep reading lines into currentLine until the transaction matches the one in previousLine
 				offset = 0;
 
 				do {
@@ -177,7 +189,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 					return addresses;
 				}
 
-				// Scan transaction.
+				// Scan transaction
 				start = offset;
 				while(offset < lineLength && (currentLine[offset] < 0 || currentLine[offset] > ' ')) offset++;
 
@@ -285,9 +297,9 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			}
 
 			if (!outputs.transactionsMatch(inputs)) {
-				throw new RuntimeException("Inconsistency in inputs and outputs:"
-						+ "output [" + outputs.lineNumber() + "]: " + new String(outputs.currentLine)
-						+ "input [" + inputs.lineNumber() + "]: " + new String(inputs.currentLine));
+				throw new RuntimeException("Inconsistency in inputs and outputs:\n"
+						+ "\toutput [" + outputs.lineNumber() + "]: " + new String(outputs.currentLine) + "\n"
+						+ "\tinput [" + inputs.lineNumber() + "]: " + new String(inputs.currentLine));
 			}
 
 			// Set the label as the transaction
