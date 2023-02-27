@@ -51,7 +51,6 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TransactionGraph.class);
 	private final static boolean DEBUG = true;
 
-
 	// Stats:
 	// - # of inputs and outputs
 	// - # of duplicates inputs and outputs
@@ -142,7 +141,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 					lineLength = readLine(currentLine);
 				} while (skipWhitespace(currentLine) == -1);
 
-				if (lineLength == -1) {
+				if (lineLength == -1) { // EOF
 					return addresses;
 				}
 
@@ -219,10 +218,10 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			final File tempDir,
 			final ProgressLogger pl) throws IOException {
 
-		// Inputs and outputs are in the form: <transaction> <address> and sorted by transaction.
+		// Inputs and outputs are in the form <transaction> <address> and sorted by transaction.
 
 		if (charset == null) {
-			charset = StandardCharsets.US_ASCII;
+			charset = StandardCharsets.ISO_8859_1;
 		}
 
 		final ReadTransactions outputs = new ReadTransactions(new FastBufferedInputStream(outputsIs), charset, numNodes, addressMap);

@@ -44,9 +44,8 @@ public class TransactionGraphExample {
 				"922 822 t2\n").getBytes());
 
 
-		Object2IntFunction<? extends CharSequence> addressIntMap = (n) -> (int) addressMap.getLong(n);
-
-		Object2IntFunction<? extends CharSequence> transactionMap = (s) -> Integer.parseInt(((String) s).substring(1));
+		Object2IntFunction<? extends CharSequence> addressIntMap = (n) -> (int) addressMap.getLong(n),
+				transactionMap = (s) -> Integer.parseInt(((String) s).substring(1));
 
 		Label prototype = new GammaCodedIntLabel("transaction-id");
 
