@@ -131,7 +131,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	 */
 	public long[] ids;
 
-	private static class ReadTransactions {
+	public static class ReadTransactions {
 		private final FastBufferedInputStream stream;
 		private final Charset charset;
 		private final int numNodes;
@@ -256,7 +256,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 		public int compareTransactions(ReadTransactions other) {
 			if (transactionStart == -1) throw new IllegalStateException("You must first read addresses");
-			return Arrays.compare(currentLine, transactionStart, transactionLength, other.currentLine, other.transactionStart, other.transactionLength);
+			return Arrays.compare(previousLine, transactionStart, transactionLength, other.currentLine, other.transactionStart, other.transactionLength);
 		}
 
 		public boolean transactionsMatch(ReadTransactions other) {
@@ -265,7 +265,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 		public String transaction() {
 			if (transactionStart == -1) throw new IllegalStateException("You must first read addresses");
-			return new String(currentLine, transactionStart, transactionLength, charset);
+			return new String(previousLine, transactionStart, transactionLength, charset);
 		}
 
 		public int lineNumber() {
@@ -321,8 +321,10 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 			if (!outputs.transactionsMatch(inputs)) {
 				throw new RuntimeException("Inconsistency in inputs and outputs!\n"
-						+ "\toutput [" + outputs.lineNumber() + "]:\t\"" + new String(outputs.currentLine) + "\"\n"
-						+ "\tinput [" + inputs.lineNumber() + "]:\t\"" + new String(inputs.currentLine) + "\"");
+						+ "\toutput at line " + outputs.lineNumber() + " with transaction " + outputs.transaction()
+						+ "\t\t" + new String(outputs.previousLine) + "\n"
+						+ "\tinput at line" + inputs.lineNumber() + " with transaction " + inputs.transaction()
+						+ "\t\t" + new String(inputs.previousLine));
 			}
 
 			// Set the label as the transaction
