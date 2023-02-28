@@ -60,7 +60,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	// - # of duplicates inputs and outputs
 	// - ???
 
-	// TODO: consider writing the address in a mutableString to avoid potential reallocation
+	// TODO: write the results in a tsv using a FastBufferedOutputStream instead of using a map
 
 	private static class Statistics {
 		private final Object2ObjectOpenHashMap<byte[], Pair<Integer, Integer>> amountInputsOutputs;
