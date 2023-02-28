@@ -153,7 +153,16 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			this.addressMap = addressMap;
 
 			do {
-				lineLength = readLine(previousLine);
+				int start = 0, len;
+				while((len = stream.readLine(previousLine, start, previousLine.length - start, ALL_TERMINATORS)) == previousLine.length - start) {
+					start += len;
+					previousLine = ByteArrays.grow(previousLine, previousLine.length + 1);
+				}
+
+				if (len == -1) {
+					throw new RuntimeException(stream + " is empty!");
+				}
+				lineLength = start + len;
 			} while (skipWhitespace(previousLine) == -1);
 		}
 
@@ -188,7 +197,17 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 				offset = 0;
 
 				do {
-					lineLength = readLine(currentLine);
+					int lineStart = 0, len;
+					while((len = stream.readLine(currentLine, lineStart, currentLine.length - lineStart, ALL_TERMINATORS)) == currentLine.length - lineStart) {
+						lineStart += len;
+						currentLine = ByteArrays.grow(currentLine, currentLine.length + 1);
+					}
+
+					if (len == -1) {
+						lineLength = -1; // EOF
+						break;
+					}
+					lineLength = lineStart + len;
 					line++;
 				} while (skipWhitespace(currentLine) == -1);
 
@@ -244,17 +263,6 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			while(offset < lineLength && array[offset] >= 0 && array[offset] <= ' ') offset++;
 			if (offset == lineLength || array[0] == '#') return -1;
 			return offset;
-		}
-
-		private int readLine(byte[] dest) throws IOException {
-			int start = 0, len;
-			while((len = stream.readLine(dest, start, dest.length - start, ALL_TERMINATORS)) == dest.length - start) {
-				start += len;
-				dest = ByteArrays.grow(dest, dest.length + 1);
-			}
-
-			if (len == -1) return -1; // EOF
-			return start + len;
 		}
 
 		public int compareTransactions(ReadTransactions other) {
@@ -321,23 +329,16 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 		for (;;) {
 			final IntArrayList outputAddresses = outputs.nextAddresses();
+			final IntArrayList inputAddresses = inputs.nextAddresses();
 
-			if (outputAddresses.size() == 0) {
+			if (outputAddresses.size() == 0 || inputAddresses.size() == 0) {
 				break;
 			}
 
-			int cmp;
-			IntArrayList inputAddresses;
-			do {
-				inputAddresses = inputs.nextAddresses();
-				cmp = outputs.compareTransactions(inputs);
-			} while (cmp < 0);
-
-			if (cmp > 0) {
-				LOGGER.warn("Inconsistency in inputs and outputs!\n"
-					+ "\toutput at line " + outputs.lineNumber() + ":\t" + new String(outputs.previousLine, 0, outputs.lineLength) + "\n"
-					+ "\tinput at line "  + inputs.lineNumber()  + ":\t" + new String(inputs.previousLine, 0, inputs.lineLength));
-				continue;
+			if (!outputs.transactionsMatch(inputs)) {
+				throw new IllegalStateException("Inconsistency: Couldn't find matching transaction from output in input!\n"
+					+ "\toutput at line " + outputs.lineNumber() + ":\t" + new String(outputs.previousLine, 0, outputs.lineLength == -1 ? outputs.previousLine.length : outputs.lineLength) + "\n"
+					+ "\tinput at line "  + inputs.lineNumber()  + ":\t" + new String(inputs.previousLine, 0, inputs.lineLength == -1 ? inputs.previousLine.length : inputs.lineLength));
 			}
 
 			// Set the label as the transaction
