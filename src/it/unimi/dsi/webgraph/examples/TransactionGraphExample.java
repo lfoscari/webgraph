@@ -28,7 +28,8 @@ public class TransactionGraphExample {
 		FastByteArrayInputStream inputs = new FastByteArrayInputStream((
 				"t1 911\n" +
 				"t1 912\n" +
-				"t3 912").getBytes());
+				"t2 921\n" +
+				"t2 922").getBytes());
 		FastByteArrayInputStream outputs = new FastByteArrayInputStream((
 				"t1 811\n" +
 				"t1 812\n" +

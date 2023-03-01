@@ -287,10 +287,6 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			return Arrays.compare(previousLine, transactionStart, transactionEnd, other.previousLine, other.transactionStart, other.transactionEnd);
 		}
 
-		public boolean transactionsMatch(ReadTransactions other) {
-			return compareTransactions(other) == 0;
-		}
-
 		public byte[] transactionBytes() {
 			if (transactionStart == -1) throw new IllegalStateException("You must first read addresses");
 			return tmpTransaction == null ? Arrays.copyOfRange(currentLine, transactionStart, transactionEnd) : tmpTransaction;
@@ -475,12 +471,11 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	}
 
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
-		Path resources = new File(".").toPath();
+		Path resources = new File("/mnt/extra/analysis/lfoscari").toPath();
 		Path artifacts = resources.resolve("artifacts");
 		Path inputsFile = resources.resolve("inputs.tsv");
 		Path outputsFile = resources.resolve("outputs.tsv");
 		Path graphDir = resources.resolve("graph-labelled");
-		graphDir.toFile().mkdir();
 
 		File tempDir = Files.createTempDirectory(resources, "transactiongraph_tmp_").toFile();
 		tempDir.deleteOnExit();
@@ -494,6 +489,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		Logger logger = LoggerFactory.getLogger(TransactionGraph.class);
 		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
 
+		graphDir.toFile().mkdir();
 		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, null, n, DEFAULT_LABEL_PROTOTYPE, labelMapping, 1_000_000, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString());
 	}
