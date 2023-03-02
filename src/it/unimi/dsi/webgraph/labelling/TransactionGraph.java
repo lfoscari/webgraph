@@ -17,10 +17,8 @@
 
 package it.unimi.dsi.webgraph.labelling;
 
-import com.google.common.primitives.Booleans;
 import it.unimi.dsi.Util;
 import it.unimi.dsi.fastutil.Pair;
-import it.unimi.dsi.fastutil.booleans.BooleanArrays;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrays;
@@ -55,7 +53,7 @@ import static it.unimi.dsi.webgraph.Transform.processTransposeBatch;
 
 public class TransactionGraph extends ImmutableSequentialGraph {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TransactionGraph.class);
-	private final static boolean DEBUG = false;
+	private final static boolean DEBUG = true;
 
 	// Stats:
 	// - # of inputs and outputs
@@ -139,6 +137,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		private final Object2IntFunction<? extends CharSequence> addressMap;
 
 		private final IntArrayList addresses = new IntArrayList(512);
+		private final boolean[] sanity;
 		private int lineLength;
 		private int offset;
 		private int line = 1;
@@ -150,10 +149,11 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		public byte[] previousLine = new byte[1024];
 		public byte[] currentLine = new byte[1024];
 
-		public ReadTransactions(FastBufferedInputStream stream, final Charset charset, final Object2IntFunction<? extends CharSequence> addressMap) throws IOException {
+		public ReadTransactions(FastBufferedInputStream stream, final Charset charset, final Object2IntFunction<? extends CharSequence> addressMap, final boolean[] sanity) throws IOException {
 			this.stream = stream;
 			this.charset = charset;
 			this.addressMap = addressMap;
+			this.sanity = sanity;
 
 			do {
 				int start = 0, len;
@@ -194,7 +194,13 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 			if (transaction == null || Arrays.equals(previousLine, transactionStart, transactionEnd, transaction, from, to)) {
 				if (DEBUG) {
-					System.out.print("t: " + transaction() + "\t");
+					if (transactionStart != -1) {
+						System.out.print("t: " + new String(previousLine, transactionStart, transactionEnd - transactionStart) + "\t");
+					} else if (transaction != null) {
+						System.out.print("t: " + new String(transaction) + "\t");
+					} else {
+						System.out.print("t: " + transaction() + "\t");
+					}
 				}
 
 				// Add previousLine address to address list
@@ -230,9 +236,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 				start = offset;
 				while(offset < lineLength && (currentLine[offset] < 0 || currentLine[offset] > ' ')) offset++;
 
-				if (DEBUG) {
-					System.out.print("t: " + new String(currentLine, start, offset - start) + "\t");
-				}
+				if (DEBUG) System.out.print("t: " + new String(currentLine, start, offset - start) + "\t");
 
 				// Check if transactions match
 				final int cmp = transaction == null ?
@@ -240,9 +244,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 						Arrays.compare(currentLine, start, offset, transaction, from, to);
 
 				if (cmp < 0) {
-					if (DEBUG) {
-						System.out.print("skipped ");
-					}
+					if (DEBUG) System.out.print("skipped ");
 					continue;
 				} else if (cmp > 0) {
 					break;
@@ -252,9 +254,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 				addAddressFromLine(currentLine);
 			}
 
-			if (DEBUG) {
-				System.out.println();
-			}
+			if (DEBUG) System.out.println();
 
 			byte[] t = currentLine;
 			currentLine = previousLine;
@@ -269,22 +269,16 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 			final String address = new String(array, start, offset - start, charset);
 			final int addressId = addressMap.getInt(address);
+			sanity[addressId] = true;
 			addresses.add(addressId);
 
-			if (DEBUG) {
-				System.out.println("a: " + address);
-			}
+			if (DEBUG) System.out.println("a: " + address);
 		}
 
 		private int skipWhitespace(final byte[] array) {
 			while(offset < lineLength && array[offset] >= 0 && array[offset] <= ' ') offset++;
 			if (offset == lineLength || array[0] == '#') return -1;
 			return offset;
-		}
-
-		public int compareTransactions(ReadTransactions other) {
-			if (transactionStart == -1) throw new IllegalStateException("You must first read addresses");
-			return Arrays.compare(previousLine, transactionStart, transactionEnd, other.previousLine, other.transactionStart, other.transactionEnd);
 		}
 
 		public byte[] transactionBytes() {
@@ -335,8 +329,11 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			charset = StandardCharsets.ISO_8859_1;
 		}
 
-		final ReadTransactions outputs = new ReadTransactions(new FastBufferedInputStream(outputsIs), charset, addressMap);
-		final ReadTransactions inputs = new ReadTransactions(new FastBufferedInputStream(inputsIs), charset, addressMap);
+		boolean[] sanity = new boolean[numNodes];
+		for (int i = 0; i < numNodes; i++) sanity[i] = false;
+
+		final ReadTransactions inputs = new ReadTransactions(new FastBufferedInputStream(inputsIs), charset, addressMap, sanity);
+		final ReadTransactions outputs = new ReadTransactions(new FastBufferedInputStream(outputsIs), charset, addressMap, sanity);
 
 		int j = 0;
 		long pairs = 0; // Number of pairs
@@ -356,22 +353,28 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		}
 
 		for (;;) {
-			final IntArrayList outputAddresses = outputs.nextAddresses();
-			final IntArrayList inputAddresses = inputs.nextAddresses(outputs.currentLine, outputs.transactionStart, outputs.transactionEnd);
+			if (DEBUG) System.out.println("input");
+			final IntArrayList inputAddresses = inputs.nextAddresses();
 
-			if (outputAddresses.size() == 0) {
+			if (inputAddresses.size() == 0) {
+				if (DEBUG) System.out.println("no more transactions inputs, terminating...");
 				break; // outputs EOF
 			}
 
-			if (inputAddresses.size() == 0) {
-				LOGGER.warn("Inconsistency: Couldn't find matching transaction from output in input!\n"
-						+ "\toutput at line " + outputs.lineNumber() + ":\t" + outputs.line() + "\n"
-						+ "\tinput at line " + inputs.lineNumber() + ":\t" + inputs.line());
+			if (DEBUG) System.out.println("output");
+			final IntArrayList outputAddresses = outputs.nextAddresses(inputs.currentLine, inputs.transactionStart, inputs.transactionEnd);
+
+			if (DEBUG) System.out.println();
+
+			if (outputAddresses.size() == 0) {
+				LOGGER.warn("Inconsistency: Couldn't find matching transaction!\n"
+						+ "\tinput at line " + inputs.lineNumber() + ":\t" + inputs.line() + "\n"
+						+ "\toutput at line " + outputs.lineNumber() + ":\t" + outputs.line() + "\n");
 				continue;
 			}
 
 			// Set the label as the transaction
-			labelMapping.apply(prototype, outputs.transaction());
+			labelMapping.apply(prototype, inputs.transaction());
 
 			for (int s: inputAddresses) {
 				for (int t: outputAddresses) {
@@ -413,6 +416,13 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		source = null;
 		target = null;
 		start = null;
+
+		int total = 0;
+		for (boolean n: sanity) if (n) total++;
+
+		System.out.println("ACTUAL TOTAL NODES: " + total);
+		System.out.println("GIVEN TOTAL NODES: " + numNodes);
+		System.out.println("TOTAL PAIRS: " + pairs);
 
 		this.arcLabelledBatchGraph = new Transform.ArcLabelledBatchGraph(numNodes, pairs, batches, labelBatches, prototype, null);
 	}
@@ -471,26 +481,26 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	}
 
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
-		Path resources = new File("/mnt/extra/analysis/lfoscari").toPath();
+		Path resources = new File("transactiontest").toPath(); // /mnt/extra/analysis/lfoscari").toPath();
 		Path artifacts = resources.resolve("artifacts");
-		Path inputsFile = resources.resolve("inputs.tsv");
-		Path outputsFile = resources.resolve("outputs.tsv");
+		Path inputsFile = resources.resolve("inputsmin.tsv");
+		Path outputsFile = resources.resolve("outputsmin.tsv");
 		Path graphDir = resources.resolve("graph-labelled");
 
 		File tempDir = Files.createTempDirectory(resources, "transactiongraph_tmp_").toFile();
 		tempDir.deleteOnExit();
 
 		GOVMinimalPerfectHashFunction<MutableString> transactionsMap = (GOVMinimalPerfectHashFunction<MutableString>) BinIO.loadObject(artifacts.resolve("transactions.map").toFile());
-		GOVMinimalPerfectHashFunction<MutableString> addressMap = (GOVMinimalPerfectHashFunction<MutableString>) BinIO.loadObject(artifacts.resolve("addresses.map").toFile());
+		GOVMinimalPerfectHashFunction<MutableString> addressMap = (GOVMinimalPerfectHashFunction<MutableString>) BinIO.loadObject(artifacts.resolve("addressesmin.map").toFile());
 		Object2IntFunction<? extends CharSequence> addressFunction = (a) -> (int) addressMap.getLong(a);
 		LabelMapping labelMapping = (l, t) -> ((GammaCodedIntLabel) l).value = (int) transactionsMap.getLong(t);
-		int n = (int) addressMap.size64();
+		int numNodes = (int) addressMap.size64();
 
 		Logger logger = LoggerFactory.getLogger(TransactionGraph.class);
-		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
+		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.SECONDS);
 
 		graphDir.toFile().mkdir();
-		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, null, n, DEFAULT_LABEL_PROTOTYPE, labelMapping, 1_000_000, tempDir, pl);
+		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, null, numNodes, DEFAULT_LABEL_PROTOTYPE, labelMapping, 1_000_000, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString());
 	}
 }
