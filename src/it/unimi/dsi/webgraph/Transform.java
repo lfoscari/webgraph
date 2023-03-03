@@ -1508,6 +1508,7 @@ public class Transform {
 
 			@Override
 			public ArcLabelledNodeIterator copy(final int upperBound) {
+				sortSuccessors();
 				try {
 					if (last == -1) return new InternalArcLabelledNodeIterator(upperBound);
 					else return new InternalArcLabelledNodeIterator(upperBound, batchIbs, labelInputBitStream,
