@@ -369,6 +369,8 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 				continue;
 			}
 
+			GOV3Function
+
 			// Set the label as the transaction
 			labelMapping.apply(prototype, inputs.transaction());
 
