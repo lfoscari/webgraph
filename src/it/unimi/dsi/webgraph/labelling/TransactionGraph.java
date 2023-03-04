@@ -17,6 +17,7 @@
 
 package it.unimi.dsi.webgraph.labelling;
 
+import com.google.common.base.Charsets;
 import it.unimi.dsi.Util;
 import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
@@ -32,6 +33,7 @@ import it.unimi.dsi.io.InputBitStream;
 import it.unimi.dsi.io.OutputBitStream;
 import it.unimi.dsi.lang.MutableString;
 import it.unimi.dsi.logging.ProgressLogger;
+import it.unimi.dsi.sux4j.mph.GOV3Function;
 import it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction;
 import it.unimi.dsi.webgraph.BVGraph;
 import it.unimi.dsi.webgraph.ImmutableSequentialGraph;
@@ -53,7 +55,7 @@ import static it.unimi.dsi.webgraph.Transform.processTransposeBatch;
 
 public class TransactionGraph extends ImmutableSequentialGraph {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TransactionGraph.class);
-	private final static boolean DEBUG = true;
+	private final static boolean DEBUG = false;
 
 	// Stats:
 	// - # of inputs and outputs
@@ -137,7 +139,6 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		private final Object2IntFunction<? extends CharSequence> addressMap;
 
 		private final IntArrayList addresses = new IntArrayList(512);
-		private final boolean[] sanity;
 		private int lineLength;
 		private int offset;
 		private int line = 1;
@@ -149,11 +150,10 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		public byte[] previousLine = new byte[1024];
 		public byte[] currentLine = new byte[1024];
 
-		public ReadTransactions(FastBufferedInputStream stream, final Charset charset, final Object2IntFunction<? extends CharSequence> addressMap, final boolean[] sanity) throws IOException {
+		public ReadTransactions(FastBufferedInputStream stream, final Charset charset, final Object2IntFunction<? extends CharSequence> addressMap) throws IOException {
 			this.stream = stream;
 			this.charset = charset;
 			this.addressMap = addressMap;
-			this.sanity = sanity;
 
 			do {
 				int start = 0, len;
@@ -269,7 +269,6 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 			final String address = new String(array, start, offset - start, charset);
 			final int addressId = addressMap.getInt(address);
-			sanity[addressId] = true;
 			addresses.add(addressId);
 
 			if (DEBUG) System.out.println("a: " + address);
@@ -329,11 +328,8 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			charset = StandardCharsets.ISO_8859_1;
 		}
 
-		boolean[] sanity = new boolean[numNodes];
-		for (int i = 0; i < numNodes; i++) sanity[i] = false;
-
-		final ReadTransactions inputs = new ReadTransactions(new FastBufferedInputStream(inputsIs), charset, addressMap, sanity);
-		final ReadTransactions outputs = new ReadTransactions(new FastBufferedInputStream(outputsIs), charset, addressMap, sanity);
+		final ReadTransactions inputs = new ReadTransactions(new FastBufferedInputStream(inputsIs), charset, addressMap);
+		final ReadTransactions outputs = new ReadTransactions(new FastBufferedInputStream(outputsIs), charset, addressMap);
 
 		int j = 0;
 		long pairs = 0; // Number of pairs
@@ -417,13 +413,6 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		target = null;
 		start = null;
 
-		int total = 0;
-		for (boolean n: sanity) if (n) total++;
-
-		System.out.println("ACTUAL TOTAL NODES: " + total);
-		System.out.println("GIVEN TOTAL NODES: " + numNodes);
-		System.out.println("TOTAL PAIRS: " + pairs);
-
 		this.arcLabelledBatchGraph = new Transform.ArcLabelledBatchGraph(numNodes, pairs, batches, labelBatches, prototype, null);
 	}
 
@@ -481,26 +470,26 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	}
 
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
-		Path resources = new File("transactiontest").toPath(); // /mnt/extra/analysis/lfoscari").toPath();
+		Path resources = new File("/mnt/extra/analysis/lfoscari").toPath(); // transactiontest
 		Path artifacts = resources.resolve("artifacts");
-		Path inputsFile = resources.resolve("inputsmin.tsv");
-		Path outputsFile = resources.resolve("outputsmin.tsv");
+		Path inputsFile = resources.resolve("inputs.tsv");
+		Path outputsFile = resources.resolve("outputs.tsv");
 		Path graphDir = resources.resolve("graph-labelled");
 
 		File tempDir = Files.createTempDirectory(resources, "transactiongraph_tmp_").toFile();
 		tempDir.deleteOnExit();
 
 		GOVMinimalPerfectHashFunction<MutableString> transactionsMap = (GOVMinimalPerfectHashFunction<MutableString>) BinIO.loadObject(artifacts.resolve("transactions.map").toFile());
-		GOVMinimalPerfectHashFunction<MutableString> addressMap = (GOVMinimalPerfectHashFunction<MutableString>) BinIO.loadObject(artifacts.resolve("addressesmin.map").toFile());
+		GOVMinimalPerfectHashFunction<MutableString> addressMap = (GOVMinimalPerfectHashFunction<MutableString>) BinIO.loadObject(artifacts.resolve("addresses.map").toFile());
 		Object2IntFunction<? extends CharSequence> addressFunction = (a) -> (int) addressMap.getLong(a);
 		LabelMapping labelMapping = (l, t) -> ((GammaCodedIntLabel) l).value = (int) transactionsMap.getLong(t);
 		int numNodes = (int) addressMap.size64();
 
 		Logger logger = LoggerFactory.getLogger(TransactionGraph.class);
-		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.SECONDS);
+		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
 
 		graphDir.toFile().mkdir();
-		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, null, numNodes, DEFAULT_LABEL_PROTOTYPE, labelMapping, 1_000_000, tempDir, pl);
-		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString());
+		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, null, numNodes, DEFAULT_LABEL_PROTOTYPE, labelMapping, 10_000_000, tempDir, pl);
+		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
 	}
 }
