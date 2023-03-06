@@ -120,6 +120,40 @@ public class TransactionGraphTest extends WebGraphTestCase {
 	}
 
 	@Test
+	public void testConstructorMissingTransactions() throws IOException {
+		TransactionGraph g;
+
+		g = new TransactionGraph(parse("a 0\na 1\na 2\nb 3"), parse("a 3"));
+		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
+		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses);
+
+		g = new TransactionGraph(parse("a 0"), parse("b 1"));
+		assertEquals(new ArrayListMutableGraph(1, new int[][] {}).immutableView(), g);
+		assertArrayEquals(new long[] {0}, g.addresses);
+
+		g = new TransactionGraph(parse("a 0\nb 2\nc 3"), parse("b 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		assertEquals(new ArrayListMutableGraph(4, new int[][] {{2, 1}}).immutableView(), g);
+		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses);
+
+
+		g = new TransactionGraph(parse("a 0\na 1\na 2"), parse("a 3"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
+
+		g = new TransactionGraph(parse("a 0"), parse("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 2);
+		assertEquals(new ArrayListMutableGraph(2, new int[][] {{0, 1}}).immutableView(), g);
+
+		g = new TransactionGraph(parse("a 0\nb 2\nc 3"), parse("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 1}}).immutableView(), g);
+	}
+
+	@Test
+	public void tmp() throws IOException {
+		TransactionGraph g = new TransactionGraph(parse("a 0\nb 2\nc 3"), parse("b 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		assertEquals(new ArrayListMutableGraph(4, new int[][] {{2, 1}}).immutableView(), g);
+		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses);
+	}
+
+	@Test
 	public void testConstructorWithStrings() throws IOException {
 		final ImmutableGraph gg = ArrayListMutableGraph.newCompleteGraph(3, false).immutableView();
 		final Object2IntFunction<byte[]> map = new Object2IntOpenCustomHashMap<>(ByteArrays.HASH_STRATEGY);
@@ -150,13 +184,13 @@ public class TransactionGraphTest extends WebGraphTestCase {
 
 	@Test(expected = RuntimeException.class)
 	public void testEmptyStream() throws IOException {
-		TransactionGraph g = new TransactionGraph(parse(""), parse("fajklsdhflkjashdlkjfh"));
+		TransactionGraph g = new TransactionGraph(parse(""), parse("Io credo ch'ei credette ch'io credesse"));
 		assertEquals(new ArrayListMutableGraph(0, new int[][] {}).immutableView(), new ArrayListMutableGraph(g).immutableView());
 	}
 
 	@Test(expected = RuntimeException.class)
 	public void testEmptyStream2() throws IOException {
-		TransactionGraph g = new TransactionGraph(parse("dfasdfasdfasdf"), parse(""));
+		TransactionGraph g = new TransactionGraph(parse("Io credo ch'ei credette ch'io credesse"), parse(""));
 		assertEquals(new ArrayListMutableGraph(0, new int[][] {}).immutableView(), new ArrayListMutableGraph(g).immutableView());
 	}
 }

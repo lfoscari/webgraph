@@ -55,7 +55,7 @@ import static it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.ge
 
 public class TransactionGraph extends ImmutableSequentialGraph {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TransactionGraph.class);
-	private final static boolean DEBUG = false;
+	private final static boolean DEBUG = true;
 
 	// Stats:
 	// - # of inputs and outputs
@@ -120,10 +120,6 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	 * The extension of the identifier file (a binary list of longs).
 	 */
 	private static final String IDS_EXTENSION = ".ids";
-	/**
-	 * TODO
-	 */
-	private static final char SEPARATOR = '\t';
 	/**
 	 * The labelled batch graph used to return node iterators.
 	 */
@@ -499,6 +495,8 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	}
 
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
+		// TODO: handle parameters
+
 		Logger logger = LoggerFactory.getLogger(TransactionGraph.class);
 		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
 
@@ -521,5 +519,9 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, DEFAULT_LABEL_PROTOTYPE, labelMapping, 10_000_000, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
+
+		/* if (addressMap == null) {
+			BinIO.storeLongs(graph.addresses, basename + IDS_EXTENSION);
+		} */
 	}
 }
