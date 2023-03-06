@@ -44,7 +44,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -52,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 
 import static it.unimi.dsi.fastutil.io.FastBufferedInputStream.*;
 import static it.unimi.dsi.webgraph.Transform.processTransposeBatch;
+import static it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.getLong;
 
 public class TransactionGraph extends ImmutableSequentialGraph {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TransactionGraph.class);
@@ -129,14 +129,14 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	 */
 	private final Transform.ArcLabelledBatchGraph arcLabelledBatchGraph;
 	/**
-	 * The list of identifiers in order of appearance.
+	 * The list of addresses in order of appearance.
 	 */
-	public long[] ids;
+	public long[] addresses;
 
 	public static class ReadTransactions {
 		private final FastBufferedInputStream stream;
-		private final Charset charset;
 		private final Object2IntFunction<byte[]> addressMap;
+		private final int numNodes;
 
 		private final IntArrayList addresses = new IntArrayList(512);
 		private final ScatteredArcsASCIIGraph.Id2NodeMap map;
@@ -144,17 +144,15 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		private int offset;
 		private int line = 1;
 
-		// TODO: make private
-		public byte[] tmpTransaction = null;
+		private int transactionStart = -1, transactionEnd = -1;
+		private byte[] tmpTransaction = null;
+		private byte[] previousLine = new byte[1024];
+		private byte[] currentLine = new byte[1024];
 
-		public int transactionStart = -1, transactionEnd = -1;
-		public byte[] previousLine = new byte[1024];
-		public byte[] currentLine = new byte[1024];
-
-		public ReadTransactions(FastBufferedInputStream stream, final Charset charset, final Object2IntFunction<byte[]> addressMap, final ScatteredArcsASCIIGraph.Id2NodeMap map) throws IOException {
+		public ReadTransactions(FastBufferedInputStream stream, final Object2IntFunction<byte[]> addressMap, final int numNodes, final ScatteredArcsASCIIGraph.Id2NodeMap map) throws IOException {
 			this.stream = stream;
-			this.charset = charset;
 			this.addressMap = addressMap;
+			this.numNodes = numNodes;
 			this.map = map;
 
 			do {
@@ -201,7 +199,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 					} else if (transaction != null) {
 						System.out.print("t: " + new String(transaction) + "\t");
 					} else {
-						System.out.print("t: " + transaction() + "\t");
+						System.out.print("t: " + transaction(Charset.defaultCharset()) + "\t");
 					}
 				}
 
@@ -277,10 +275,14 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			} else {
 				final byte[] address = Arrays.copyOfRange(array, start, offset);
 				addressId = addressMap.getInt(address);
+
+				if (addressId < 0 || addressId >= numNodes) {
+					throw new IllegalArgumentException("Address node number out of range for node " + addressId + ": " + new String(array, start, offset - start));
+				}
 			}
 
 			addresses.add(addressId);
-			if (DEBUG) System.out.println("a: " + new String(array, start, offset - start, charset) + " [" + addressId + "]");
+			if (DEBUG) System.out.println("a: " + new String(array, start, offset - start) + " [" + addressId + "]");
 		}
 
 		private int skipWhitespace(final byte[] array) {
@@ -289,32 +291,12 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			return offset;
 		}
 
-		private static long getLong(final byte[] array, int offset, int length) {
-			if (length == 0) throw new NumberFormatException("Empty number");
-			int sign = 1;
-			if (array[offset] == '-') {
-				sign = -1;
-				offset++;
-				length--;
-			}
-
-			long value = 0;
-			for (int i = 0; i < length; i++) {
-				final byte digit = array[offset + i];
-				if (digit < '0' || digit > '9') throw new NumberFormatException("Not a digit: " + (char)digit);
-				value *= 10;
-				value += digit - '0';
-			}
-
-			return sign * value;
-		}
-
 		public byte[] transactionBytes() {
 			if (transactionStart == -1) throw new IllegalStateException("You must first read addresses");
 			return tmpTransaction == null ? Arrays.copyOfRange(currentLine, transactionStart, transactionEnd) : tmpTransaction;
 		}
 
-		public String transaction() {
+		public String transaction(Charset charset) {
 			if (transactionStart == -1) throw new IllegalStateException("You must first read addresses");
 			return new String(transactionBytes(), charset);
 		}
@@ -343,23 +325,18 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		this(inputsIs, outputsIs, null, -1, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING);
 	}
 
-	public TransactionGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2IntFunction<byte[]> addressMap) throws IOException {
-		this(inputsIs, outputsIs, addressMap, addressMap.size(), DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING);
-	}
-
 	public TransactionGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2IntFunction<byte[]> addressMap, final int numNodes) throws IOException {
 		this(inputsIs, outputsIs, addressMap, numNodes, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING);
 	}
 
 	public TransactionGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2IntFunction<byte[]> addressMap, final int numNodes, final Label labelPrototype, final LabelMapping labelMapping) throws IOException {
-		this(inputsIs, outputsIs, addressMap, null, numNodes, labelPrototype, labelMapping, DEFAULT_BATCH_SIZE, null, null);
+		this(inputsIs, outputsIs, addressMap, numNodes, labelPrototype, labelMapping, DEFAULT_BATCH_SIZE, null, null);
 	}
 
 	public TransactionGraph(
 			final InputStream inputsIs,
 			final InputStream outputsIs,
 			final Object2IntFunction<byte[]> addressMap,
-			Charset charset,
 			int numNodes,
 			final Label labelPrototype,
 			final LabelMapping labelMapping,
@@ -373,14 +350,10 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			throw new IllegalArgumentException("Negative number of nodes");
 		}
 
-		if (charset == null) {
-			charset = StandardCharsets.ISO_8859_1;
-		}
-
 		ScatteredArcsASCIIGraph.Id2NodeMap map = new ScatteredArcsASCIIGraph.Id2NodeMap();
 
-		final ReadTransactions inputs = new ReadTransactions(new FastBufferedInputStream(inputsIs), charset, addressMap, map);
-		final ReadTransactions outputs = new ReadTransactions(new FastBufferedInputStream(outputsIs), charset, addressMap, map);
+		final ReadTransactions inputs = new ReadTransactions(new FastBufferedInputStream(inputsIs), addressMap, numNodes, map);
+		final ReadTransactions outputs = new ReadTransactions(new FastBufferedInputStream(outputsIs), addressMap, numNodes, map);
 
 		int j = 0;
 		long pairs = 0; // Number of pairs
@@ -462,7 +435,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 		if (addressMap == null) {
 			numNodes = (int) map.size();
-			ids = map.getIds(tempDir);
+			addresses = map.getIds(tempDir);
 		}
 
 		source = null;
@@ -546,7 +519,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		LabelMapping labelMapping = (prototype, representation) -> ((GammaCodedIntLabel) prototype).value = (int) transactionsMap.getLong(new String(representation));
 		int numNodes = (int) addressMap.size64();
 
-		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, null, numNodes, DEFAULT_LABEL_PROTOTYPE, labelMapping, 1_000_000, tempDir, pl);
+		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, DEFAULT_LABEL_PROTOTYPE, labelMapping, 10_000_000, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
 	}
 }

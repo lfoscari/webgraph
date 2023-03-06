@@ -149,8 +149,7 @@ public class ScatteredLabelledArcsASCIIGraph extends ImmutableSequentialGraph {
 	/**
 	 * The default label mapping function.
 	 */
-	public static final LabelMapping DEFAULT_LABEL_MAPPING = (prototype, representation) ->
-			((GammaCodedIntLabel) prototype).value = Arrays.hashCode(representation);
+	public static final LabelMapping DEFAULT_LABEL_MAPPING = (prototype, representation) -> ((GammaCodedIntLabel) prototype).value = Arrays.hashCode(representation);
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ScatteredLabelledArcsASCIIGraph.class);
 	private final static boolean DEBUG = false;
@@ -753,7 +752,7 @@ public class ScatteredLabelledArcsASCIIGraph extends ImmutableSequentialGraph {
 		pl.logger().info("Created " + batches.size() + " batches using " + Util.format((double)Byte.SIZE * length / pairs) + " bits/arc.");
 	}
 
-	private static long getLong(final byte[] array, int offset, int length) {
+	static long getLong(final byte[] array, int offset, int length) {
 		if (length == 0) throw new NumberFormatException("Empty number");
 		int sign = 1;
 		if (array[offset] == '-') {

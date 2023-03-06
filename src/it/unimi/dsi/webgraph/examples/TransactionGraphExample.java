@@ -61,7 +61,7 @@ public class TransactionGraphExample {
 		Label prototype = new GammaCodedIntLabel("transaction-id");
 		ScatteredLabelledArcsASCIIGraph.LabelMapping labelMapping = (label, bb) -> ((GammaCodedIntLabel) label).value = Integer.parseInt(new String(bb, 1, bb.length - 1));
 
-		System.out.println(new TransactionGraph(inputs, outputs, addressIntMap, Charset.defaultCharset(), (int) addressMap.size64(), prototype, labelMapping, 2, null, pl));
+		System.out.println(new TransactionGraph(inputs, outputs, addressIntMap, (int) addressMap.size64(), prototype, labelMapping, 2, null, pl));
 		System.out.println(new ScatteredLabelledArcsASCIIGraph(arcs, stringAddressMap, Charset.defaultCharset(), (int) addressMap.size64(), prototype, labelMapping, null, false, false, 2));
 	}
 }

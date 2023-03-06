@@ -17,17 +17,14 @@
 
 package it.unimi.dsi.webgraph;
 
-import it.unimi.dsi.fastutil.Pair;
+import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import it.unimi.dsi.fastutil.io.FastByteArrayInputStream;
 import it.unimi.dsi.fastutil.longs.Long2IntFunction;
-import it.unimi.dsi.fastutil.objects.Object2IntFunction;
-import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
-import it.unimi.dsi.fastutil.objects.Object2LongFunction;
+import it.unimi.dsi.fastutil.objects.*;
 import it.unimi.dsi.webgraph.labelling.*;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -101,11 +98,65 @@ public class TransactionGraphTest extends WebGraphTestCase {
 
 		g = new TransactionGraph(parse("a 0\na 1\na 2"), parse("a 3"));
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
+		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses);
 
 		g = new TransactionGraph(parse("a 0"), parse("a 1"));
 		assertEquals(new ArrayListMutableGraph(2, new int[][] {{0, 1}}).immutableView(), g);
+		assertArrayEquals(new long[] {0, 1}, g.addresses);
 
 		g = new TransactionGraph(parse("a 0\nb 2\nc 3"), parse("a 1"));
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 1}}).immutableView(), g);
+		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses);
+
+
+		g = new TransactionGraph(parse("a 0\na 1\na 2"), parse("a 3"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
+
+		g = new TransactionGraph(parse("a 0"), parse("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 2);
+		assertEquals(new ArrayListMutableGraph(2, new int[][] {{0, 1}}).immutableView(), g);
+
+		g = new TransactionGraph(parse("a 0\nb 2\nc 3"), parse("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 1}}).immutableView(), g);
+	}
+
+	@Test
+	public void testConstructorWithStrings() throws IOException {
+		final ImmutableGraph gg = ArrayListMutableGraph.newCompleteGraph(3, false).immutableView();
+		final Object2IntFunction<byte[]> map = new Object2IntOpenCustomHashMap<>(ByteArrays.HASH_STRATEGY);
+		map.defaultReturnValue(-1);
+
+		map.clear();
+		map.put("0".getBytes(), 0);
+		map.put("1".getBytes(), 1);
+		map.put("2".getBytes(), 2);
+		assertEquals(gg, new TransactionGraph(parse("a 0\nb 1\nc 2"), parse("a 1\na 2\nb 0\nb 2\nc 0\nc 1"), map, 3));
+
+		map.put("-1".getBytes(), 1);
+		map.put("-2".getBytes(), 2);
+		assertEquals(gg, new TransactionGraph(parse("a 0\nb -1\nc -2"), parse("a -1\na 2\nb 0\nb 2\nc 0\nc 1"), map, 3));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testTargetOutOfRange() throws IOException {
+		final Object2IntFunction<byte[]> map = new Object2IntArrayMap<>();
+		map.defaultReturnValue(-1);
+		map.put("0".getBytes(), 0);
+		map.put("1".getBytes(), 1);
+		map.put("2".getBytes(), 2);
+
+		TransactionGraph g = new TransactionGraph(parse("a 0\na 1\na 2"), parse("a 3"), map, 2);
+		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
+	}
+
+	@Test(expected = RuntimeException.class)
+	public void testEmptyStream() throws IOException {
+		TransactionGraph g = new TransactionGraph(parse(""), parse("fajklsdhflkjashdlkjfh"));
+		assertEquals(new ArrayListMutableGraph(0, new int[][] {}).immutableView(), new ArrayListMutableGraph(g).immutableView());
+	}
+
+	@Test(expected = RuntimeException.class)
+	public void testEmptyStream2() throws IOException {
+		TransactionGraph g = new TransactionGraph(parse("dfasdfasdfasdf"), parse(""));
+		assertEquals(new ArrayListMutableGraph(0, new int[][] {}).immutableView(), new ArrayListMutableGraph(g).immutableView());
 	}
 }
