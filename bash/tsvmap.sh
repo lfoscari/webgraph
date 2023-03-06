@@ -3,6 +3,7 @@
 if [[ "$3" == "" ]]; then
 	echo "$(basename $0) DIR|FILE OFFSET MAPFILE" 1>&2
 	echo "Reads TSVs in DIR (or the single FILE) and computes an immutable function with the rank as the values and the OFFSETH-th column as keys." 1>&2
+	echo "FILES MUST END WITH A NEWLINE. Fix them with \"sed -i -e '\$a\\' *\"." 1>&2
 	exit 1
 fi
 
