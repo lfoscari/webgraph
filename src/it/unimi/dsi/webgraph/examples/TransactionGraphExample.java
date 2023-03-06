@@ -1,44 +1,35 @@
 package it.unimi.dsi.webgraph.examples;
 
 import it.unimi.dsi.bits.TransformationStrategies;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.io.FastBufferedOutputStream;
 import it.unimi.dsi.fastutil.io.FastByteArrayInputStream;
 import it.unimi.dsi.fastutil.objects.Object2IntFunction;
-import it.unimi.dsi.io.InputBitStream;
-import it.unimi.dsi.io.OutputBitStream;
-import it.unimi.dsi.lang.MutableString;
+import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.logging.ProgressLogger;
-import it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction;
-import it.unimi.dsi.util.XoRoShiRo128PlusRandom;
+import it.unimi.dsi.sux4j.mph.GOV3Function;
 import it.unimi.dsi.webgraph.labelling.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class TransactionGraphExample {
 
+	public static final Logger l = LoggerFactory.getLogger(TransactionGraph.class);
+	public static final ProgressLogger pl = new ProgressLogger(l, "transactions");
 	public static final List<String> KEYS = Arrays.asList("911", "912", "921", "922", "811", "812", "821", "822");
 
 	public static void main(String[] args) throws IOException {
-		GOVMinimalPerfectHashFunction.Builder<MutableString> b = new GOVMinimalPerfectHashFunction.Builder<>();
-		List<MutableString> tarcs = new ArrayList<>();
-		for (String s1 : KEYS) {
-			MutableString mutableString = new MutableString(s1);
-			tarcs.add(mutableString);
-		}
-		b.keys(tarcs);
-		b.transform(TransformationStrategies.iso());
-		GOVMinimalPerfectHashFunction<MutableString> addressMap = b.build();
+		GOV3Function<byte[]> addressMap = new GOV3Function.Builder<byte[]>()
+				.keys(KEYS.stream().map(String::getBytes).collect(Collectors.toList()))
+				.transform(TransformationStrategies.rawByteArray())
+				.build();
 
 		for (String key: KEYS) {
-			System.out.println(key + " => " + addressMap.getLong(key));
+			System.out.println(key + " => " + addressMap.getLong(key.getBytes()));
 		}
 
 		FastByteArrayInputStream inputs = new FastByteArrayInputStream((
@@ -64,15 +55,13 @@ public class TransactionGraphExample {
 				"922 821 t2\n" +
 				"922 822 t2\n").getBytes());
 
-		Object2IntFunction<? extends CharSequence> addressIntMap = (n) -> (int) addressMap.getLong(n);
-		Object2IntFunction<? extends CharSequence> transactionMap = (s) -> Integer.parseInt(((String) s).substring(1));
+		Object2IntFunction<byte[]> addressIntMap = (bb) -> (int) addressMap.getLong(bb);
+		Object2LongFunction<? extends CharSequence> stringAddressMap = (s) -> addressMap.getLong(((String) s).getBytes());
 
 		Label prototype = new GammaCodedIntLabel("transaction-id");
-		ScatteredLabelledArcsASCIIGraph.LabelMapping labelMapping = (label, transaction) -> ((GammaCodedIntLabel) label).value = transactionMap.getInt(transaction);
-		Logger l = LoggerFactory.getLogger(TransactionGraph.class);
-		ProgressLogger pl = new ProgressLogger(l, "transactions");
+		ScatteredLabelledArcsASCIIGraph.LabelMapping labelMapping = (label, bb) -> ((GammaCodedIntLabel) label).value = Integer.parseInt(new String(bb, 1, bb.length - 1));
 
-		System.out.println(new TransactionGraph(inputs, outputs, addressIntMap, Charset.defaultCharset(), (int) addressMap.size64(), prototype, labelMapping, 1, null, pl));
-		System.out.println(new ScatteredLabelledArcsASCIIGraph(arcs, addressMap, Charset.defaultCharset(), (int) addressMap.size64(), prototype, labelMapping, null, false, false, 1));
+		System.out.println(new TransactionGraph(inputs, outputs, addressIntMap, Charset.defaultCharset(), (int) addressMap.size64(), prototype, labelMapping, 2, null, pl));
+		System.out.println(new ScatteredLabelledArcsASCIIGraph(arcs, stringAddressMap, Charset.defaultCharset(), (int) addressMap.size64(), prototype, labelMapping, null, false, false, 2));
 	}
 }

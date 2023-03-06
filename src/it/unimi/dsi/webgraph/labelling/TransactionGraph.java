@@ -17,7 +17,6 @@
 
 package it.unimi.dsi.webgraph.labelling;
 
-import com.google.common.base.Charsets;
 import it.unimi.dsi.Util;
 import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
@@ -34,7 +33,6 @@ import it.unimi.dsi.io.OutputBitStream;
 import it.unimi.dsi.lang.MutableString;
 import it.unimi.dsi.logging.ProgressLogger;
 import it.unimi.dsi.sux4j.mph.GOV3Function;
-import it.unimi.dsi.sux4j.mph.GOVMinimalPerfectHashFunction;
 import it.unimi.dsi.webgraph.BVGraph;
 import it.unimi.dsi.webgraph.ImmutableSequentialGraph;
 import it.unimi.dsi.webgraph.Transform;
@@ -115,7 +113,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	/**
 	 * The default label mapping function.
 	 */
-	public static final LabelMapping DEFAULT_LABEL_MAPPING = (label, st) -> ((GammaCodedIntLabel) label).value = Integer.parseInt((String) st);
+	public static final LabelMapping DEFAULT_LABEL_MAPPING = ScatteredLabelledArcsASCIIGraph.DEFAULT_LABEL_MAPPING;
 	/**
 	 * The extension of the identifier file (a binary list of longs).
 	 */
@@ -136,7 +134,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	public static class ReadTransactions {
 		private final FastBufferedInputStream stream;
 		private final Charset charset;
-		private final Object2IntFunction<? extends CharSequence> addressMap;
+		private final Object2IntFunction<byte[]> addressMap;
 
 		private final IntArrayList addresses = new IntArrayList(512);
 		private int lineLength;
@@ -150,7 +148,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		public byte[] previousLine = new byte[1024];
 		public byte[] currentLine = new byte[1024];
 
-		public ReadTransactions(FastBufferedInputStream stream, final Charset charset, final Object2IntFunction<? extends CharSequence> addressMap) throws IOException {
+		public ReadTransactions(FastBufferedInputStream stream, final Charset charset, final Object2IntFunction<byte[]> addressMap) throws IOException {
 			this.stream = stream;
 			this.charset = charset;
 			this.addressMap = addressMap;
@@ -267,11 +265,11 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			final int start = offset;
 			while(offset < lineLength && (array[offset] < 0 || array[offset] > ' ')) offset++;
 
-			final String address = new String(array, start, offset - start, charset);
+			final byte[] address = Arrays.copyOfRange(array, start, offset);
 			final int addressId = addressMap.getInt(address);
 			addresses.add(addressId);
 
-			if (DEBUG) System.out.println("a: " + address);
+			if (DEBUG) System.out.println("a: " + new String(address, charset) + " [" + addressId + "]");
 		}
 
 		private int skipWhitespace(final byte[] array) {
@@ -313,7 +311,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	public TransactionGraph(
 			final InputStream inputsIs,
 			final InputStream outputsIs,
-			final Object2IntFunction<? extends CharSequence> addressMap,
+			final Object2IntFunction<byte[]> addressMap,
 			Charset charset,
 			final int numNodes,
 			final Label labelPrototype,
@@ -369,10 +367,8 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 				continue;
 			}
 
-			GOV3Function
-
 			// Set the label as the transaction
-			labelMapping.apply(prototype, inputs.transaction());
+			labelMapping.apply(prototype, inputs.transactionBytes());
 
 			for (int s: inputAddresses) {
 				for (int t: outputAddresses) {
@@ -472,25 +468,26 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	}
 
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
+		Logger logger = LoggerFactory.getLogger(TransactionGraph.class);
+		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
+
 		Path resources = new File("/mnt/extra/analysis/lfoscari").toPath(); // transactiontest
 		Path artifacts = resources.resolve("artifacts");
 		Path inputsFile = resources.resolve("inputs.tsv");
 		Path outputsFile = resources.resolve("outputs.tsv");
 		Path graphDir = resources.resolve("graph-labelled");
 
+		graphDir.toFile().mkdir();
 		File tempDir = Files.createTempDirectory(resources, "transactiongraph_tmp_").toFile();
 		tempDir.deleteOnExit();
 
-		GOVMinimalPerfectHashFunction<MutableString> transactionsMap = (GOVMinimalPerfectHashFunction<MutableString>) BinIO.loadObject(artifacts.resolve("transactions.map").toFile());
-		GOVMinimalPerfectHashFunction<MutableString> addressMap = (GOVMinimalPerfectHashFunction<MutableString>) BinIO.loadObject(artifacts.resolve("addresses.map").toFile());
-		Object2IntFunction<? extends CharSequence> addressFunction = (a) -> (int) addressMap.getLong(a);
-		LabelMapping labelMapping = (l, t) -> ((GammaCodedIntLabel) l).value = (int) transactionsMap.getLong(t);
+		GOV3Function<byte[]> transactionsMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("transactions.map").toFile());
+		GOV3Function<byte[]> addressMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("addresses.map").toFile());
+
+		Object2IntFunction<byte[]> addressFunction = (a) -> (int) addressMap.getLong(a);
+		LabelMapping labelMapping = (prototype, representation) -> ((GammaCodedIntLabel) prototype).value = (int) transactionsMap.getLong(representation);
 		int numNodes = (int) addressMap.size64();
 
-		Logger logger = LoggerFactory.getLogger(TransactionGraph.class);
-		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
-
-		graphDir.toFile().mkdir();
 		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, null, numNodes, DEFAULT_LABEL_PROTOTYPE, labelMapping, 10_000_000, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
 	}

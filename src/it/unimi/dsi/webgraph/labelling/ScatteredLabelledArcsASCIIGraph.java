@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
@@ -148,7 +149,8 @@ public class ScatteredLabelledArcsASCIIGraph extends ImmutableSequentialGraph {
 	/**
 	 * The default label mapping function.
 	 */
-	public static final LabelMapping DEFAULT_LABEL_MAPPING = (label, st) -> ((GammaCodedIntLabel) label).value = Integer.parseInt((String) st);
+	public static final LabelMapping DEFAULT_LABEL_MAPPING = (prototype, representation) ->
+			((GammaCodedIntLabel) prototype).value = Integer.parseInt(new String(representation));
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ScatteredLabelledArcsASCIIGraph.class);
 	private final static boolean DEBUG = false;
@@ -564,7 +566,7 @@ public class ScatteredLabelledArcsASCIIGraph extends ImmutableSequentialGraph {
 			final String ls = new String(array, start, offset - start, charset);
 
 			// Insert current value into the prototype label.
-			labelMapping.apply(prototype, ls);
+			labelMapping.apply(prototype, Arrays.copyOfRange(array, start, offset));
 			if (DEBUG) System.err.println("Parsed label at line " + line + ": " + ls + " => " + prototype.get());
 
 			// Skip whitespace after label.
@@ -825,7 +827,7 @@ public class ScatteredLabelledArcsASCIIGraph extends ImmutableSequentialGraph {
 	}
 
 	public interface LabelMapping {
-		void apply(Label prototype, CharSequence representation);
+		void apply(Label prototype, byte[] representation);
 	}
 
 	@SuppressWarnings("unchecked")
