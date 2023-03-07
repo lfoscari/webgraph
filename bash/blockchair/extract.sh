@@ -1,8 +1,8 @@
 #!/bin/bash -e
 
 # TODO: rewrite
-if [[ "$2" == "" ]]; then
-	echo "$(basename $0) DIR NTHREADS [input|output] [ADDRESS-ONLY]" 1>&2
+if [[ "$3" == "" ]]; then
+	echo "$(basename $0) DIR NTHREADS {INPUT|OUTPUT} [ADDRESS|TRANSACTION]" 1>&2
 	echo "Reads files in DIR and processes them using NTHREADS parallel sorts." 1>&2
 	echo "Files are processed as input files if input is specified or as output files if output is specified." 1>&2
 	echo "Only addresses are extracted if ADDRESS_ONLY is specified" 1>&2
@@ -12,11 +12,11 @@ fi
 
 DIR=$1
 NTHREADS=$2
-TARGET=$3
-ADDRESS_ONLY=$4
+SOURCE=$(echo "$3" | tr '[:upper:]' '[:lower:]')
+TARGET=$(echo "$4" | tr '[:upper:]' '[:lower:]')
 
-if [[ "$TARGET" != "output" && "$TARGET" != "input" ]]; then
-  echo "Target \"$TARGET\" must be either \"input\" or \"output\""
+if [[ "$SOURCE" != "output" && "$SOURCE" != "input" ]]; then
+  echo "Target \"$SOURCE\" must be either \"input\" or \"output\""
   exit 1
 fi
 
@@ -51,17 +51,22 @@ SPLITS=$(for file in ${SPLITBASE}?*; do echo $file; done)
 
 for SPLIT in $SPLITS; do
 	mkfifo $SPLIT.pipe
-	if [[ "$TARGET" == "output" ]]; then
-	  if [[ "$ADDRESS_ONLY" != "" ]]; then
-		  (tail -q -n+2 $(cat $SPLIT) | cut -f7,10 | awk '{ if ($2 == 0) print $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
-		else
+	if [[ "$SOURCE" == "output" ]]; then
+	  if [[ "$TARGET" == "" ]]; then
 		  (tail -q -n+2 $(cat $SPLIT) | cut -f2,7,10 | awk '{ if ($3 == 0) print $1 "\t" $2 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
-		fi
-	elif [[ "$TARGET" == "input" ]]; then
-	  if [[ "$ADDRESS_ONLY" != "" ]]; then
-		  (tail -q -n+2 $(cat $SPLIT) | cut -f7 | LC_ALL=C sort -S2G >$SPLIT.pipe) &
+		elif  [[ "$TARGET" == "address" ]]; then
+		  (tail -q -n+2 $(cat $SPLIT) | cut -f7,10 | awk '{ if ($2 == 0) print $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
+		elif  [[ "$TARGET" == "transaction" ]]; then
+		  (tail -q -n+2 $(cat $SPLIT) | cut -f2,10 | awk '{ if ($2 == 0) print $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
 		else
+		fi
+	elif [[ "$SOURCE" == "input" ]]; then
+	  if [[ "$TARGET" == "" ]]; then
 		  (tail -q -n+2 $(cat $SPLIT) | cut -f7,13 | awk '{ print $2 "\t" $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
+		elif  [[ "$TARGET" == "address" ]]; then
+		  (tail -q -n+2 $(cat $SPLIT) | cut -f7 | LC_ALL=C sort -S2G >$SPLIT.pipe) &
+	  elif  [[ "$TARGET" == "transaction" ]]; then
+	    (tail -q -n+2 $(cat $SPLIT) | cut -f13 | LC_ALL=C sort -S2G >$SPLIT.pipe) &
     fi
 	fi
 done
