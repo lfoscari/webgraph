@@ -12,9 +12,9 @@ OUTPUTSDIR=$2
 NTHREADS=$(expr $3 / 2)
 
 INPUTFILE=$(mktemp)
-bash extract.sh $INPUTSDIR $NTHREADS input addressonly > $INPUTFILE &
+bash extract.sh $INPUTSDIR $NTHREADS input address > $INPUTFILE &
 
 OUTPUTFILE=$(mktemp)
-bash extract.sh $OUTPUTSDIR $NTHREADS output addressonly > $OUTPUTFILE &
+bash extract.sh $OUTPUTSDIR $NTHREADS output address > $OUTPUTFILE &
 
 LC_ALL=C sort -S2G -m $INPUTFILE $OUTPUTFILE
