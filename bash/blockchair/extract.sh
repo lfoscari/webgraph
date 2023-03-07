@@ -4,8 +4,9 @@
 if [[ "$3" == "" ]]; then
 	echo "$(basename $0) DIR NTHREADS {INPUT|OUTPUT} [ADDRESS|TRANSACTION]" 1>&2
 	echo "Reads files in DIR and processes them using NTHREADS parallel sorts." 1>&2
-	echo "Files are processed as input files if input is specified or as output files if output is specified." 1>&2
-	echo "Only addresses are extracted if ADDRESS_ONLY is specified" 1>&2
+	echo "Files are processed as input files if \"input\" is specified or as output files if \"output\" is specified." 1>&2
+	echo "If no further option is specified, addresses and transactions will be extracted from the files." 1>&2
+	echo "By specifying either \"address\" or \"transaction\" is possible to choose." 1>&2
 	echo "FILES MUST END WITH A NEWLINE. Fix them with \"sed -i -e '\$a\\' *\"." 1>&2
 	exit 1
 fi
@@ -16,7 +17,12 @@ SOURCE=$(echo "$3" | tr '[:upper:]' '[:lower:]')
 TARGET=$(echo "$4" | tr '[:upper:]' '[:lower:]')
 
 if [[ "$SOURCE" != "output" && "$SOURCE" != "input" ]]; then
-  echo "Target \"$SOURCE\" must be either \"input\" or \"output\""
+  echo "Source \"$SOURCE\" must be either \"input\" or \"output\""
+  exit 1
+fi
+
+if [[ "$TARGET" != "" && "$TARGET" != "address" && "$TARGET" != "transaction" ]]; then
+  echo "Target \"$TARGET\" must be either empty, \"address\" or \"transaction\""
   exit 1
 fi
 
@@ -58,7 +64,6 @@ for SPLIT in $SPLITS; do
 		  (tail -q -n+2 $(cat $SPLIT) | cut -f7,10 | awk '{ if ($2 == 0) print $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
 		elif  [[ "$TARGET" == "transaction" ]]; then
 		  (tail -q -n+2 $(cat $SPLIT) | cut -f2,10 | awk '{ if ($2 == 0) print $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
-		else
 		fi
 	elif [[ "$SOURCE" == "input" ]]; then
 	  if [[ "$TARGET" == "" ]]; then
