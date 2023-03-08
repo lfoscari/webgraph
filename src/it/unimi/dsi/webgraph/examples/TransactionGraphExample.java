@@ -33,7 +33,7 @@ public class TransactionGraphExample {
 		// Crea un sacco di input, basta un solo output
 		// Così abbiamo [size] archi
 		MutableString input = new MutableString();
-		for (int i = 1; i <= size; i++) input.append("a " + i +"\n");
+		for (int i = 1; i <= size; i++) input.append("a " + i + "\n");
 		MutableString output = new MutableString("a " + (size + 1) + "\n");
 
 		// batch size a uno per stressare i file aperti

@@ -17,13 +17,13 @@ SOURCE=$(echo "$3" | tr '[:upper:]' '[:lower:]')
 TARGET=$(echo "$4" | tr '[:upper:]' '[:lower:]')
 
 if [[ "$SOURCE" != "output" && "$SOURCE" != "input" ]]; then
-  echo "Source \"$SOURCE\" must be either \"input\" or \"output\""
-  exit 1
+	echo "Source \"$SOURCE\" must be either \"input\" or \"output\""
+	exit 1
 fi
 
 if [[ "$TARGET" != "" && "$TARGET" != "address" && "$TARGET" != "transaction" ]]; then
-  echo "Target \"$TARGET\" must be either empty, \"address\" or \"transaction\""
-  exit 1
+	echo "Target \"$TARGET\" must be either empty, \"address\" or \"transaction\""
+	exit 1
 fi
 
 function file_ends_with_newline() {
@@ -46,7 +46,7 @@ NFILES=$(cat $FILES | wc -l)
 
 # To avoid empty splits, there must be at least as many threads as files
 
-if (( NFILES < NTHREADS )); then
+if ((NFILES < NTHREADS)); then
 	NTHREADS=$NFILES
 	echo "Not enough files: number of threads set to $NFILES" 1>&2
 fi
@@ -58,21 +58,21 @@ SPLITS=$(for file in ${SPLITBASE}?*; do echo $file; done)
 for SPLIT in $SPLITS; do
 	mkfifo $SPLIT.pipe
 	if [[ "$SOURCE" == "output" ]]; then
-	  if [[ "$TARGET" == "" ]]; then
-		  (tail -q -n+2 $(cat $SPLIT) | cut -f2,7,10 | awk '{ if ($3 == 0) print $1 "\t" $2 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
-		elif  [[ "$TARGET" == "address" ]]; then
-		  (tail -q -n+2 $(cat $SPLIT) | cut -f7,10 | awk '{ if ($2 == 0) print $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
-		elif  [[ "$TARGET" == "transaction" ]]; then
-		  (tail -q -n+2 $(cat $SPLIT) | cut -f2,10 | awk '{ if ($2 == 0) print $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
+		if [[ "$TARGET" == "" ]]; then
+			(tail -q -n+2 $(cat $SPLIT) | cut -f2,7,10 | awk '{ if ($3 == 0) print $1 "\t" $2 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
+		elif [[ "$TARGET" == "address" ]]; then
+			(tail -q -n+2 $(cat $SPLIT) | cut -f7,10 | awk '{ if ($2 == 0) print $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
+		elif [[ "$TARGET" == "transaction" ]]; then
+			(tail -q -n+2 $(cat $SPLIT) | cut -f2,10 | awk '{ if ($2 == 0) print $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
 		fi
 	elif [[ "$SOURCE" == "input" ]]; then
-	  if [[ "$TARGET" == "" ]]; then
-		  (tail -q -n+2 $(cat $SPLIT) | cut -f7,13 | awk '{ print $2 "\t" $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
-		elif  [[ "$TARGET" == "address" ]]; then
-		  (tail -q -n+2 $(cat $SPLIT) | cut -f7 | LC_ALL=C sort -S2G >$SPLIT.pipe) &
-	  elif  [[ "$TARGET" == "transaction" ]]; then
-	    (tail -q -n+2 $(cat $SPLIT) | cut -f13 | LC_ALL=C sort -S2G >$SPLIT.pipe) &
-    fi
+		if [[ "$TARGET" == "" ]]; then
+			(tail -q -n+2 $(cat $SPLIT) | cut -f7,13 | awk '{ print $2 "\t" $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
+		elif [[ "$TARGET" == "address" ]]; then
+			(tail -q -n+2 $(cat $SPLIT) | cut -f7 | LC_ALL=C sort -S2G >$SPLIT.pipe) &
+		elif [[ "$TARGET" == "transaction" ]]; then
+			(tail -q -n+2 $(cat $SPLIT) | cut -f13 | LC_ALL=C sort -S2G >$SPLIT.pipe) &
+		fi
 	fi
 done
 
