@@ -14,11 +14,11 @@ NTHREADS=$(expr $3 / 2)
 SCRIPTDIR=$(dirname $(realpath $0))
 FILESDIR=$(dirname $INPUTSDIR)
 
-INPUTSFILE=$(mktemp --tmpdir $FILESDIR)
+INPUTSFILE=$(mktemp --tmpdir $FILESDIR/tmp.XXX)
 mkfifo $INPUTSFILE
 bash $SCRIPTDIR/extract.sh $INPUTSDIR $NTHREADS input address >$INPUTSFILE &
 
-OUTPUTSFILE=$(mktemp --tmpdir $FILESDIR)
+OUTPUTSFILE=$(mktemp --tmpdir $FILESDIR/tmp.XXX)
 mkfifo $OUTPUTSFILE
 bash $SCRIPTDIR/extract.sh $OUTPUTSDIR $NTHREADS output address >$OUTPUTSFILE &
 
