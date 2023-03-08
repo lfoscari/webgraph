@@ -233,14 +233,18 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		File tempDir = Files.createTempDirectory(resources, "transactiongraph_tmp_").toFile();
 		tempDir.deleteOnExit();
 
+		// TODO: Build a GOV3Function using the extract script
 		GOVMinimalPerfectHashFunction<MutableString> transactionsMap = (GOVMinimalPerfectHashFunction<MutableString>) BinIO.loadObject(artifacts.resolve("transactions.map").toFile());
 		GOV3Function<byte[]> addressMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("addresses.map").toFile());
 
 		Object2IntFunction<byte[]> addressFunction = (a) -> (int) addressMap.getLong(a);
-		LabelMapping labelMapping = (prototype, representation) -> ((GammaCodedIntLabel) prototype).value = (int) transactionsMap.getLong(new String(representation));
+
+		int maxBitsForTransactions = Long.BYTES * 8 - Long.numberOfLeadingZeros(transactionsMap.size64());
+		Label labelPrototype = new FixedWidthLongLabel("transaction-id", maxBitsForTransactions);
+		LabelMapping labelMapping = (prototype, representation) -> ((FixedWidthLongLabel) prototype).value = transactionsMap.getLong(new String(representation));
 		int numNodes = (int) addressMap.size64();
 
-		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, DEFAULT_LABEL_PROTOTYPE, labelMapping, 1_000_000_000, tempDir, pl);
+		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, labelPrototype, labelMapping, 2_000_000_000, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
 
 		/* if (addressMap == null) {
