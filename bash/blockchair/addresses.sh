@@ -11,14 +11,17 @@ INPUTSDIR=$1
 OUTPUTSDIR=$2
 NTHREADS=$(expr $3 / 2)
 SCRIPTDIR=$(dirname $(realpath $0))
+FILEDIR=$(dirname $INPUTSDIR)
 
-[[ -p $INPUTSDIR/input.pipe ]] && rm -f $INPUTSDIR/input.pipe
-mkfifo $INPUTSDIR/input.pipe
-bash $SCRIPTDIR/extract.sh $INPUTSDIR $NTHREADS input address >$INPUTSDIR/input.pipe &
+INPUTSPIPE=$FILEDIR/input.pipe
+[[ -p $INPUTSPIPE ]] && rm -f $INPUTSPIPE
+mkfifo $INPUTSPIPE
+bash $SCRIPTDIR/extract.sh $INPUTSDIR $NTHREADS input address >$INPUTSPIPE &
 
-[[ -p $OUTPUTSDIR/output.pipe ]] && rm -f $OUTPUTSDIR/output.pipe
-mkfifo $OUTPUTSDIR/output.pipe
-bash $SCRIPTDIR/extract.sh $OUTPUTSDIR $NTHREADS output address >$OUTPUTSDIR/output.pipe &
+OUTPUTSPIPE=$FILEDIR/output.pipe
+[[ -p $OUTPUTSPIPE ]] && rm -f $OUTPUTSPIPE
+mkfifo $OUTPUTSPIPE
+bash $SCRIPTDIR/extract.sh $OUTPUTSDIR $NTHREADS output address >$OUTPUTSPIPE &
 
 LC_ALL=C sort -S2G -m $INPUTTMP.pipe $OUTPUTTMP.pipe
 
