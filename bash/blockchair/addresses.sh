@@ -11,9 +11,8 @@ INPUTSDIR=$1
 OUTPUTSDIR=$2
 NTHREADS=$(expr $3 / 2)
 SCRIPTDIR=$(dirname $(realpath $0))
-FILEDIR=$(dirname $INPUTSDIR)
-INPUTSPIPE=$FILEDIR/input.pipe
-OUTPUTSPIPE=$FILEDIR/output.pipe
+INPUTSPIPE=$(dirname $INPUTSDIR)/input.pipe
+OUTPUTSPIPE=$(dirname $OUTPUTSDIR)/output.pipe
 
 [[ -p $INPUTSPIPE ]] && rm -f $INPUTSPIPE
 mkfifo $INPUTSPIPE
