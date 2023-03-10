@@ -45,8 +45,12 @@ public class TransactionGraphTest extends WebGraphTestCase {
 	private static final LabelMapping hashcodeMapping = (label, st) -> ((GammaCodedIntLabel)label).value = Arrays.hashCode(st);
 	private static final LabelMapping integerMapping = (label, st) -> ((GammaCodedIntLabel)label).value = Integer.parseInt(new String(st));
 
-	private static FastByteArrayInputStream parse(String s) {
+	private static FastByteArrayInputStream str2fbais(String s) {
 		return new FastByteArrayInputStream(s.getBytes(StandardCharsets.US_ASCII));
+	}
+
+	private static FastBufferedInputStream str2fbis(final String x) {
+		return new FastBufferedInputStream(new ByteArrayInputStream(x.getBytes()));
 	}
 
 	private static Iterator<long[]> toArcsIterator(final String s) {
@@ -99,26 +103,26 @@ public class TransactionGraphTest extends WebGraphTestCase {
 	public void testConstructor() throws IOException {
 		TransactionGraph g;
 
-		g = new TransactionGraph(parse("a 0\na 1\na 2"), parse("a 3"));
+		g = new TransactionGraph(str2fbais("a 0\na 1\na 2"), str2fbais("a 3"));
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
 		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses);
 
-		g = new TransactionGraph(parse("a 0"), parse("a 1"));
+		g = new TransactionGraph(str2fbais("a 0"), str2fbais("a 1"));
 		assertEquals(new ArrayListMutableGraph(2, new int[][] {{0, 1}}).immutableView(), g);
 		assertArrayEquals(new long[] {0, 1}, g.addresses);
 
-		g = new TransactionGraph(parse("a 0\nb 2\nc 3"), parse("a 1"));
+		g = new TransactionGraph(str2fbais("a 0\nb 2\nc 3"), str2fbais("a 1"));
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 1}}).immutableView(), g);
 		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses);
 
 
-		g = new TransactionGraph(parse("a 0\na 1\na 2"), parse("a 3"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		g = new TransactionGraph(str2fbais("a 0\na 1\na 2"), str2fbais("a 3"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
 
-		g = new TransactionGraph(parse("a 0"), parse("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 2);
+		g = new TransactionGraph(str2fbais("a 0"), str2fbais("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 2);
 		assertEquals(new ArrayListMutableGraph(2, new int[][] {{0, 1}}).immutableView(), g);
 
-		g = new TransactionGraph(parse("a 0\nb 2\nc 3"), parse("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		g = new TransactionGraph(str2fbais("a 0\nb 2\nc 3"), str2fbais("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 1}}).immutableView(), g);
 	}
 
@@ -126,48 +130,25 @@ public class TransactionGraphTest extends WebGraphTestCase {
 	public void testConstructorMissingTransactions() throws IOException {
 		TransactionGraph g;
 
-		g = new TransactionGraph(parse("a 0\na 1\na 2\nb 3"), parse("a 3"));
+		g = new TransactionGraph(str2fbais("a 0\na 1\na 2\nb 3"), str2fbais("a 3"));
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
 		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses);
 
-		g = new TransactionGraph(parse("a 0"), parse("b 1"));
+		g = new TransactionGraph(str2fbais("a 0"), str2fbais("b 1"));
 		assertEquals(new ArrayListMutableGraph(1, new int[][] {}).immutableView(), g);
 		assertArrayEquals(new long[] {0}, g.addresses);
 
-		g = new TransactionGraph(parse("a 0\nb 2\nc 3"), parse("b 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		g = new TransactionGraph(str2fbais("a 0\nb 2\nc 3"), str2fbais("b 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{2, 1}}).immutableView(), g);
 
-		g = new TransactionGraph(parse("a 0\na 1\na 2"), parse("a 3"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		g = new TransactionGraph(str2fbais("a 0\na 1\na 2"), str2fbais("a 3"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
 
-		g = new TransactionGraph(parse("a 0"), parse("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 2);
+		g = new TransactionGraph(str2fbais("a 0"), str2fbais("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 2);
 		assertEquals(new ArrayListMutableGraph(2, new int[][] {{0, 1}}).immutableView(), g);
 
-		g = new TransactionGraph(parse("a 0\nb 2\nc 3"), parse("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		g = new TransactionGraph(str2fbais("a 0\nb 2\nc 3"), str2fbais("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 1}}).immutableView(), g);
-	}
-
-	@Test
-	public void tmp() throws IOException {
-		Object2IntFunction<byte[]> addressMap = (bb) -> Integer.parseInt(new String((byte[]) bb));
-
-		TransactionGraph.ReadTransactions in = new TransactionGraph.ReadTransactions(
-				new FastBufferedInputStream(new ByteArrayInputStream("a 0\nb 1\nc 3".getBytes())), addressMap, 1000, null);
-
-		TransactionGraph.ReadTransactions out = new TransactionGraph.ReadTransactions(
-				new FastBufferedInputStream(new ByteArrayInputStream("b 2\nc 4".getBytes())), addressMap, 1000, null);
-
-		System.out.println("in " + in.nextAddresses() + " - " + in.transaction(Charset.defaultCharset()));
-		System.out.println("out " + out.nextAddresses(in.currentLine, in.transactionStart, in.transactionEnd) + " - " + out.transaction(Charset.defaultCharset()));
-		System.out.println("in " + in.nextAddresses() + " - " + in.transaction(Charset.defaultCharset()));
-		System.out.println("out " + out.nextAddresses(in.currentLine, in.transactionStart, in.transactionEnd) + " - " + out.transaction(Charset.defaultCharset()));
-		System.out.println("in " + in.nextAddresses() + " - " + in.transaction(Charset.defaultCharset()));
-		System.out.println("out " + out.nextAddresses(in.currentLine, in.transactionStart, in.transactionEnd) + " - " + out.transaction(Charset.defaultCharset()));
-
-
-		/* TransactionGraph g = new TransactionGraph(parse("a 0\nb 1\nc 3"), parse("b 2\n"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
-		assertEquals(new ArrayListMutableGraph(4, new int[][] {{1, 2}}).immutableView(), g);
-		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses); */
 	}
 
 	@Test
@@ -180,11 +161,11 @@ public class TransactionGraphTest extends WebGraphTestCase {
 		map.put("0".getBytes(), 0);
 		map.put("1".getBytes(), 1);
 		map.put("2".getBytes(), 2);
-		assertEquals(gg, new TransactionGraph(parse("a 0\nb 1\nc 2"), parse("a 1\na 2\nb 0\nb 2\nc 0\nc 1"), map, 3));
+		assertEquals(gg, new TransactionGraph(str2fbais("a 0\nb 1\nc 2"), str2fbais("a 1\na 2\nb 0\nb 2\nc 0\nc 1"), map, 3));
 
 		map.put("-1".getBytes(), 1);
 		map.put("-2".getBytes(), 2);
-		assertEquals(gg, new TransactionGraph(parse("a 0\nb -1\nc -2"), parse("a -1\na 2\nb 0\nb 2\nc 0\nc 1"), map, 3));
+		assertEquals(gg, new TransactionGraph(str2fbais("a 0\nb -1\nc -2"), str2fbais("a -1\na 2\nb 0\nb 2\nc 0\nc 1"), map, 3));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -195,19 +176,113 @@ public class TransactionGraphTest extends WebGraphTestCase {
 		map.put("1".getBytes(), 1);
 		map.put("2".getBytes(), 2);
 
-		TransactionGraph g = new TransactionGraph(parse("a 0\na 1\na 2"), parse("a 3"), map, 2);
+		TransactionGraph g = new TransactionGraph(str2fbais("a 0\na 1\na 2"), str2fbais("a 3"), map, 2);
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
 	}
 
 	@Test(expected = RuntimeException.class)
 	public void testEmptyStream() throws IOException {
-		TransactionGraph g = new TransactionGraph(parse(""), parse("Io credo ch'ei credette ch'io credesse"));
+		TransactionGraph g = new TransactionGraph(str2fbais(""), str2fbais("Io credo ch'ei credette ch'io credesse"));
 		assertEquals(new ArrayListMutableGraph(0, new int[][] {}).immutableView(), new ArrayListMutableGraph(g).immutableView());
 	}
 
 	@Test(expected = RuntimeException.class)
 	public void testEmptyStream2() throws IOException {
-		TransactionGraph g = new TransactionGraph(parse("Io credo ch'ei credette ch'io credesse"), parse(""));
+		TransactionGraph g = new TransactionGraph(str2fbais("Io credo ch'ei credette ch'io credesse"), str2fbais(""));
 		assertEquals(new ArrayListMutableGraph(0, new int[][] {}).immutableView(), new ArrayListMutableGraph(g).immutableView());
+	}
+
+	@Test
+	public void readTransactionOneLineTest() throws IOException {
+		TransactionGraph.ReadTransactions in = new TransactionGraph.ReadTransactions(str2fbis("a 0\nb 1\nc 2"), addressMap, Integer.MAX_VALUE, null);
+
+		assertArrayEquals(new int[] {0}, in.nextAddresses().toIntArray());
+		assertEquals("a", in.transaction(Charset.defaultCharset()));
+
+		assertArrayEquals(new int[] {1}, in.nextAddresses().toIntArray());
+		assertEquals("b", in.transaction(Charset.defaultCharset()));
+
+		assertArrayEquals(new int[] {2}, in.nextAddresses().toIntArray());
+		assertEquals("c", in.transaction(Charset.defaultCharset()));
+	}
+
+	@Test
+	public void readTransactionPairOneLineTest() throws IOException {
+		TransactionGraph.ReadTransactions a = new TransactionGraph.ReadTransactions(str2fbis("a 0"), addressMap);
+		TransactionGraph.ReadTransactions b = new TransactionGraph.ReadTransactions(str2fbis("a 1"), addressMap);
+
+		assertArrayEquals(new int[] {0}, a.nextAddresses().toIntArray());
+		assertEquals("a", a.transaction(Charset.defaultCharset()));
+
+		assertArrayEquals(new int[] {1}, b.nextAddresses(a.currentLine, a.transactionStart, a.transactionEnd).toIntArray());
+		assertEquals("a", b.transaction(Charset.defaultCharset()));
+	}
+
+	@Test
+	public void readTransactionPairMultipleLines() throws IOException {
+		TransactionGraph.ReadTransactions a = new TransactionGraph.ReadTransactions(str2fbis("a 0\nb 0\n c 0"), addressMap);
+		TransactionGraph.ReadTransactions b = new TransactionGraph.ReadTransactions(str2fbis("c 1"), addressMap);
+
+		assertArrayEquals(new int[] {0}, a.nextAddresses().toIntArray());
+		assertEquals("a", a.transaction(Charset.defaultCharset()));
+
+		assertArrayEquals(new int[] {}, b.nextAddresses(a.currentLine, a.transactionStart, a.transactionEnd).toIntArray());
+		assertEquals("a", b.transaction(Charset.defaultCharset()));
+
+		assertArrayEquals(new int[] {0}, a.nextAddresses().toIntArray());
+		assertEquals("b", a.transaction(Charset.defaultCharset()));
+
+		assertArrayEquals(new int[] {}, b.nextAddresses(a.currentLine, a.transactionStart, a.transactionEnd).toIntArray());
+		assertEquals("b", b.transaction(Charset.defaultCharset()));
+
+		assertArrayEquals(new int[] {0}, a.nextAddresses().toIntArray());
+		assertEquals("c", a.transaction(Charset.defaultCharset()));
+
+		assertArrayEquals(new int[] {1}, b.nextAddresses(a.currentLine, a.transactionStart, a.transactionEnd).toIntArray());
+		assertEquals("c", b.transaction(Charset.defaultCharset()));
+	}
+
+	@Test
+	public void readTransactionPairMultipleLinesInverted() throws IOException {
+		TransactionGraph.ReadTransactions a = new TransactionGraph.ReadTransactions(str2fbis("c 1"), addressMap);
+		TransactionGraph.ReadTransactions b = new TransactionGraph.ReadTransactions(str2fbis("a 0\nb 0\n c 0"), addressMap);
+
+		assertArrayEquals(new int[] {1}, a.nextAddresses().toIntArray());
+		assertEquals("c", a.transaction(Charset.defaultCharset()));
+
+		assertArrayEquals(new int[] {0}, b.nextAddresses(a.currentLine, a.transactionStart, a.transactionEnd).toIntArray());
+		assertEquals("c", b.transaction(Charset.defaultCharset()));
+	}
+
+	@Test
+	public void readTransactionMultipleLinesMultipleAddresses() throws IOException {
+		TransactionGraph.ReadTransactions a = new TransactionGraph.ReadTransactions(str2fbis("a 0\na 1\n a 2"), addressMap);
+
+		assertArrayEquals(new int[] {0, 1, 2}, a.nextAddresses().toIntArray());
+		assertEquals("a", a.transaction(Charset.defaultCharset()));
+	}
+
+	@Test
+	public void readTransactionPairMultipleLinesMultipleAddresses() throws IOException {
+		TransactionGraph.ReadTransactions a = new TransactionGraph.ReadTransactions(str2fbis("a 0\na 1\n a 2"), addressMap);
+		TransactionGraph.ReadTransactions b = new TransactionGraph.ReadTransactions(str2fbis("a 0\na 3"), addressMap);
+
+		assertArrayEquals(new int[] {0, 1, 2}, a.nextAddresses().toIntArray());
+		assertEquals("a", a.transaction(Charset.defaultCharset()));
+
+		assertArrayEquals(new int[] {0, 3}, b.nextAddresses(a.currentLine, a.transactionStart, a.transactionEnd).toIntArray());
+		assertEquals("a", b.transaction(Charset.defaultCharset()));
+	}
+
+	@Test
+	public void readTransactionPairMultipleLinesMultipleAddressesSkipping() throws IOException {
+		TransactionGraph.ReadTransactions a = new TransactionGraph.ReadTransactions(str2fbis("b 0\nb 1\n b 2"), addressMap);
+		TransactionGraph.ReadTransactions b = new TransactionGraph.ReadTransactions(str2fbis("a 0\na 0\na 0\nb 0\nb 3"), addressMap);
+
+		assertArrayEquals(new int[] {0, 1, 2}, a.nextAddresses().toIntArray());
+		assertEquals("b", a.transaction(Charset.defaultCharset()));
+
+		assertArrayEquals(new int[] {0, 3}, b.nextAddresses(a.currentLine, a.transactionStart, a.transactionEnd).toIntArray());
+		assertEquals("b", b.transaction(Charset.defaultCharset()));
 	}
 }
