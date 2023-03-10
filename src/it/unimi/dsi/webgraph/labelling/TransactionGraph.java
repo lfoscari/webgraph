@@ -18,15 +18,14 @@
 package it.unimi.dsi.webgraph.labelling;
 
 import it.unimi.dsi.Util;
-import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
+import it.unimi.dsi.fastutil.io.FastBufferedOutputStream;
 import it.unimi.dsi.fastutil.io.FastByteArrayOutputStream;
 import it.unimi.dsi.fastutil.objects.Object2IntFunction;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.io.InputBitStream;
 import it.unimi.dsi.io.OutputBitStream;
@@ -98,7 +97,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	}
 
 	public TransactionGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2IntFunction<byte[]> addressMap, final int numNodes, final Label labelPrototype, final LabelMapping labelMapping) throws IOException {
-		this(inputsIs, outputsIs, addressMap, numNodes, labelPrototype, labelMapping, DEFAULT_BATCH_SIZE, null, null);
+		this(inputsIs, outputsIs, addressMap, numNodes, labelPrototype, labelMapping, DEFAULT_BATCH_SIZE, null, null, null);
 	}
 
 	public TransactionGraph(
@@ -109,6 +108,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			final Label labelPrototype,
 			final LabelMapping labelMapping,
 			final int batchSize,
+			final Statistics statistics,
 			final File tempDir,
 			final ProgressLogger pl) throws IOException {
 
@@ -162,7 +162,12 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			}
 
 			// Set the label as the transaction
-			labelMapping.apply(prototype, inputs.transactionBytes());
+			byte[] transaction = inputs.transactionBytes();
+			labelMapping.apply(prototype, transaction);
+
+			if (statistics != null) {
+				statistics.update(transaction, inputAddresses, outputAddresses);
+			}
 
 			for (int s : inputAddresses) {
 				for (int t : outputAddresses) {
@@ -230,6 +235,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		Path inputsFile = resources.resolve("inputs.tsv");
 		Path outputsFile = resources.resolve("outputs.tsv");
 		Path graphDir = resources.resolve("graph-labelled");
+		Path statsDir = resources.resolve("stats");
 
 		graphDir.toFile().mkdir();
 		File tempDir = Files.createTempDirectory(resources, "transactiongraph_tmp_").toFile();
@@ -246,7 +252,9 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		LabelMapping labelMapping = (prototype, representation) -> ((FixedWidthLongLabel) prototype).value = transactionsMap.getLong(new String(representation));
 		int numNodes = (int) addressMap.size64();
 
-		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, labelPrototype, labelMapping, 2_000_000_000, tempDir, pl);
+		Statistics statistics = new Statistics(statsDir, transactionsMap);
+
+		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, labelPrototype, labelMapping, 2_000_000_000, statistics, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
 
 		/* if (addressMap == null) {
@@ -306,44 +314,45 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	// - # of duplicates inputs and outputs
 	// - ???
 
-	// TODO: write the results in a tsv using a FastBufferedOutputStream instead of using a map
-	private static class Statistics {
-		private final Object2ObjectOpenHashMap<byte[], Pair<Integer, Integer>> amountInputsOutputs;
-		private final Object2ObjectOpenHashMap<byte[], Pair<Integer, Integer>> duplicateInputsOutputs;
+	private static class Statistics implements Closeable {
+		private final GOV3Function<byte[]> transactionMap;
 
-		public Statistics() {
-			this(1024);
+		private final FastBufferedOutputStream amountInputsOutputs;
+		private final FastBufferedOutputStream duplicateInputsOutputs;
+
+		public Statistics(Path statisticsDirectory, GOV3Function<byte[]> map) throws FileNotFoundException {
+			transactionMap = map;
+			amountInputsOutputs = new FastBufferedOutputStream(new FileOutputStream(statisticsDirectory.resolve("amounts").toFile()));
+			duplicateInputsOutputs = new FastBufferedOutputStream(new FileOutputStream(statisticsDirectory.resolve("duplicates").toFile()));
 		}
 
-		public Statistics(int transactionAmount) {
-			amountInputsOutputs = new Object2ObjectOpenHashMap<>(transactionAmount);
-			duplicateInputsOutputs = new Object2ObjectOpenHashMap<>(transactionAmount);
+		public void update(byte[] transaction, IntArrayList inputAddresses, IntArrayList outputAddresses) throws IOException {
+			long uniqueInputs, uniqueOutputs, transactionId;
+
+			MutableString mb = new MutableString();
+			mb.append(transactionId = transactionMap.getLong(transaction));
+			mb.append(uniqueInputs = uniqueAddressesAmount(inputAddresses));
+			mb.append(uniqueOutputs = uniqueAddressesAmount(outputAddresses));
+			mb.append("\n");
+			mb.writeSelfDelimUTF8(amountInputsOutputs);
+
+			mb.length(0);
+			mb.append(transactionId);
+			mb.append(inputAddresses.size() - uniqueInputs);
+			mb.append(outputAddresses.size() - uniqueOutputs);
+			mb.append("\n");
+			mb.writeSelfDelimUTF8(duplicateInputsOutputs);
 		}
 
-		public void update(byte[] transaction, int[] inputAddresses, int[] outputAddresses) {
-			amountInputsOutputs.put(transaction, Pair.of(inputAddresses.length, outputAddresses.length));
-
-			IntArrays.quickSort(inputAddresses);
-			int inputDuplicates = 0;
-			for (int i = 1; i < inputAddresses.length; i++)
-				if (inputAddresses[i] == inputAddresses[i - 1])
-					inputDuplicates++;
-
-			IntArrays.quickSort(outputAddresses);
-			int outputDuplicates = 0;
-			for (int i = 1; i < outputAddresses.length; i++)
-				if (outputAddresses[i] == outputAddresses[i - 1])
-					outputDuplicates++;
-
-			duplicateInputsOutputs.put(transaction, Pair.of(inputDuplicates, outputDuplicates));
+		private static long uniqueAddressesAmount(final IntArrayList addresses) {
+			if (addresses.size() == 0) return 0;
+			return addresses.stream().distinct().count();
 		}
 
-		public void save(File destination) throws IOException {
-			amountInputsOutputs.trim();
-			BinIO.storeObject(amountInputsOutputs, destination);
-
-			duplicateInputsOutputs.trim();
-			BinIO.storeObject(duplicateInputsOutputs, destination);
+		@Override
+		public void close() throws IOException {
+			this.amountInputsOutputs.close();
+			this.duplicateInputsOutputs.close();
 		}
 	}
 
