@@ -2,8 +2,7 @@
 
 if [[ "$3" == "" ]]; then
 	"$(basename $0) INPUTSDIR OUTPUTSDIR NTHREADS" 1>&2
-	echo "Reads inputs in INPUTSDIR and outputs in OUTPUTSDIR and processes them using NTHREADS parallel sorts." 1>&2
-	echo "FILES MUST END WITH A NEWLINE. Fix them with \"sed -i -e '\$a\\' *\"." 1>&2
+	echo "Reads inputs in INPUTSDIR and outputs in OUTPUTSDIR and extracts the sorted addresses." 1>&2
 	exit 1
 fi
 
