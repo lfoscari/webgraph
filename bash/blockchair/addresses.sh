@@ -9,17 +9,9 @@ fi
 
 INPUTSDIR=$1
 OUTPUTSDIR=$2
-NTHREADS=$(expr $3 / 2)
+NTHREADS=$3
 SCRIPTDIR=$(dirname $(realpath $0))
-INPUTSPIPE=$(mktemp)input.pipe
-OUTPUTSPIPE=$(mktemp)output.pipe
 
-mkfifo $INPUTSPIPE
-bash $SCRIPTDIR/extract.sh $INPUTSDIR $NTHREADS input address >$INPUTSPIPE &
-
-mkfifo $OUTPUTSPIPE
-bash $SCRIPTDIR/extract.sh $OUTPUTSDIR $NTHREADS output address >$OUTPUTSPIPE &
-
-LC_ALL=C sort -S2G -mu $INPUTSPIPE $OUTPUTSPIPE | uniq
-
-rm -f $INPUTSPIPE $OUTPUTSPIPE
+LC_ALL=C sort -S2G -mu \
+  $(bash $SCRIPTDIR/extract.sh $INPUTSDIR $NTHREADS input address) \
+  $(bash $SCRIPTDIR/extract.sh $OUTPUTSDIR $NTHREADS output address)
