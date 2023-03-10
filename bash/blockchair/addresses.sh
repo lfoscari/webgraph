@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-if [[ "$2" == "" ]]; then
+if [[ "$3" == "" ]]; then
 	"$(basename $0) INPUTSDIR OUTPUTSDIR NTHREADS" 1>&2
 	echo "Reads inputs in INPUTSDIR and outputs in OUTPUTSDIR and processes them using NTHREADS parallel sorts." 1>&2
 	echo "FILES MUST END WITH A NEWLINE. Fix them with \"sed -i -e '\$a\\' *\"." 1>&2
@@ -20,6 +20,6 @@ bash $SCRIPTDIR/extract.sh $INPUTSDIR $NTHREADS input address >$INPUTSPIPE &
 mkfifo $OUTPUTSPIPE
 bash $SCRIPTDIR/extract.sh $OUTPUTSDIR $NTHREADS output address >$OUTPUTSPIPE &
 
-LC_ALL=C sort -S2G -mu $INPUTSPIPE $OUTPUTSPIPE
+LC_ALL=C sort -S2G -mu $INPUTSPIPE $OUTPUTSPIPE | uniq
 
 rm -f $INPUTSPIPE $OUTPUTSPIPE
