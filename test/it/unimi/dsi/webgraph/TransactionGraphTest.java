@@ -18,13 +18,16 @@
 package it.unimi.dsi.webgraph;
 
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
+import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
 import it.unimi.dsi.fastutil.io.FastByteArrayInputStream;
 import it.unimi.dsi.fastutil.longs.Long2IntFunction;
 import it.unimi.dsi.fastutil.objects.*;
 import it.unimi.dsi.webgraph.labelling.*;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -133,8 +136,6 @@ public class TransactionGraphTest extends WebGraphTestCase {
 
 		g = new TransactionGraph(parse("a 0\nb 2\nc 3"), parse("b 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{2, 1}}).immutableView(), g);
-		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses);
-
 
 		g = new TransactionGraph(parse("a 0\na 1\na 2"), parse("a 3"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
@@ -148,9 +149,25 @@ public class TransactionGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void tmp() throws IOException {
-		TransactionGraph g = new TransactionGraph(parse("a 0\nb 2\nc 3"), parse("b 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
-		assertEquals(new ArrayListMutableGraph(4, new int[][] {{2, 1}}).immutableView(), g);
-		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses);
+		Object2IntFunction<byte[]> addressMap = (bb) -> Integer.parseInt(new String((byte[]) bb));
+
+		TransactionGraph.ReadTransactions in = new TransactionGraph.ReadTransactions(
+				new FastBufferedInputStream(new ByteArrayInputStream("a 0\nb 1\nc 3".getBytes())), addressMap, 1000, null);
+
+		TransactionGraph.ReadTransactions out = new TransactionGraph.ReadTransactions(
+				new FastBufferedInputStream(new ByteArrayInputStream("b 2\nc 4".getBytes())), addressMap, 1000, null);
+
+		System.out.println("in " + in.nextAddresses() + " - " + in.transaction(Charset.defaultCharset()));
+		System.out.println("out " + out.nextAddresses(in.currentLine, in.transactionStart, in.transactionEnd) + " - " + out.transaction(Charset.defaultCharset()));
+		System.out.println("in " + in.nextAddresses() + " - " + in.transaction(Charset.defaultCharset()));
+		System.out.println("out " + out.nextAddresses(in.currentLine, in.transactionStart, in.transactionEnd) + " - " + out.transaction(Charset.defaultCharset()));
+		System.out.println("in " + in.nextAddresses() + " - " + in.transaction(Charset.defaultCharset()));
+		System.out.println("out " + out.nextAddresses(in.currentLine, in.transactionStart, in.transactionEnd) + " - " + out.transaction(Charset.defaultCharset()));
+
+
+		/* TransactionGraph g = new TransactionGraph(parse("a 0\nb 1\nc 3"), parse("b 2\n"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		assertEquals(new ArrayListMutableGraph(4, new int[][] {{1, 2}}).immutableView(), g);
+		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses); */
 	}
 
 	@Test

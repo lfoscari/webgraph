@@ -62,19 +62,12 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	 * The default label prototype.
 	 */
 	public static final Label DEFAULT_LABEL_PROTOTYPE = new GammaCodedIntLabel("transaction-id");
-
-	// Stats:
-	// - # of inputs and outputs
-	// - # of duplicates inputs and outputs
-	// - ???
-
-	// TODO: write the results in a tsv using a FastBufferedOutputStream instead of using a map
 	/**
 	 * The default label mapping function.
 	 */
 	public static final LabelMapping DEFAULT_LABEL_MAPPING = ScatteredLabelledArcsASCIIGraph.DEFAULT_LABEL_MAPPING;
 	private static final Logger LOGGER = LoggerFactory.getLogger(TransactionGraph.class);
-	private final static boolean DEBUG = false;
+	private final static boolean DEBUG = true;
 	/**
 	 * The extension of the identifier file (a binary list of longs).
 	 */
@@ -299,6 +292,12 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		return ms.toString();
 	}
 
+	// Stats:
+	// - # of inputs and outputs
+	// - # of duplicates inputs and outputs
+	// - ???
+
+	// TODO: write the results in a tsv using a FastBufferedOutputStream instead of using a map
 	private static class Statistics {
 		private final Object2ObjectOpenHashMap<byte[], Pair<Integer, Integer>> amountInputsOutputs;
 		private final Object2ObjectOpenHashMap<byte[], Pair<Integer, Integer>> duplicateInputsOutputs;
@@ -350,10 +349,13 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		private int offset;
 		private int line = 1;
 
-		private int transactionStart = -1, transactionEnd = -1;
-		private byte[] tmpTransaction = null;
-		private byte[] previousLine = new byte[1024];
-		private byte[] currentLine = new byte[1024];
+		// TODO: make private
+		public int tmpTransactionStart = -1, tmpTransactionEnd = -1;
+		public byte[] tmpTransaction = null;
+
+		public int transactionStart = -1, transactionEnd = -1;
+		public byte[] previousLine = new byte[1024];
+		public byte[] currentLine = new byte[1024];
 
 		public ReadTransactions(FastBufferedInputStream stream, final Object2IntFunction<byte[]> addressMap, final int numNodes, final ScatteredArcsASCIIGraph.Id2NodeMap map) throws IOException {
 			this.stream = stream;
@@ -381,7 +383,10 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 		public IntArrayList nextAddresses(byte[] transaction, int from, int to) throws IOException {
 			addresses.clear();
+
 			tmpTransaction = transaction;
+			tmpTransactionStart = from;
+			tmpTransactionEnd = to;
 
 			if (lineLength == -1) {
 				return addresses;
@@ -398,7 +403,8 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			transactionStart = start;
 			transactionEnd = offset;
 
-			if (transaction == null || Arrays.equals(previousLine, transactionStart, transactionEnd, transaction, from, to)) {
+			int cmp = transaction != null ? Arrays.compare(previousLine, transactionStart, transactionEnd, transaction, from, to) : -1;
+			if (transaction == null || cmp == 0) {
 				if (DEBUG) {
 					if (transactionStart != -1) {
 						System.out.print("t: " + new String(previousLine, transactionStart, transactionEnd - transactionStart) + "\t");
@@ -414,7 +420,11 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 				addAddressFromLine(previousLine);
 			}
 
-			for (; ; ) {
+			if (cmp > 0) {
+				return addresses;
+			}
+
+			for (;;) {
 				// Now keep reading lines into currentLine until the transaction matches the one in previousLine
 				offset = 0;
 
@@ -445,9 +455,9 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 				if (DEBUG) System.out.print("t: " + new String(currentLine, start, offset - start) + "\t");
 
 				// Check if transactions match
-				final int cmp = transaction == null ?
-						Arrays.compare(currentLine, start, offset, previousLine, transactionStart, transactionEnd) :
-						Arrays.compare(currentLine, start, offset, transaction, from, to);
+				cmp = transaction == null ?
+					Arrays.compare(currentLine, start, offset, previousLine, transactionStart, transactionEnd) :
+					Arrays.compare(currentLine, start, offset, transaction, from, to);
 
 				if (cmp < 0) {
 					if (DEBUG) System.out.print("skipped ");
@@ -499,7 +509,9 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 		public byte[] transactionBytes() {
 			if (transactionStart == -1) throw new IllegalStateException("You must first read addresses");
-			return tmpTransaction == null ? Arrays.copyOfRange(currentLine, transactionStart, transactionEnd) : tmpTransaction;
+			return tmpTransaction == null ?
+					Arrays.copyOfRange(currentLine, transactionStart, transactionEnd) :
+					Arrays.copyOfRange(tmpTransaction, tmpTransactionStart, tmpTransactionEnd);
 		}
 
 		public String transaction(Charset charset) {
