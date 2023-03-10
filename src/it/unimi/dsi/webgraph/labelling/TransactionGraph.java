@@ -53,6 +53,8 @@ import static it.unimi.dsi.fastutil.io.FastBufferedInputStream.*;
 import static it.unimi.dsi.webgraph.Transform.processTransposeBatch;
 import static it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.getLong;
 
+// TODO: Description and methods spec
+
 public class TransactionGraph extends ImmutableSequentialGraph {
 	/**
 	 * The default batch size.
@@ -66,8 +68,14 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	 * The default label mapping function.
 	 */
 	public static final LabelMapping DEFAULT_LABEL_MAPPING = ScatteredLabelledArcsASCIIGraph.DEFAULT_LABEL_MAPPING;
+	/**
+	 * The default logger.
+	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger(TransactionGraph.class);
-	private final static boolean DEBUG = true;
+	/**
+	 * Toggle the debug mode.
+	 */
+	private final static boolean DEBUG = false;
 	/**
 	 * The extension of the identifier file (a binary list of longs).
 	 */
@@ -80,6 +88,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	 * The list of addresses in order of appearance.
 	 */
 	public long[] addresses;
+
 	public TransactionGraph(final InputStream inputsIs, final InputStream outputsIs) throws IOException {
 		this(inputsIs, outputsIs, null, -1, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING);
 	}
@@ -356,6 +365,10 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		public int transactionStart = -1, transactionEnd = -1;
 		public byte[] previousLine = new byte[1024];
 		public byte[] currentLine = new byte[1024];
+
+		public ReadTransactions(FastBufferedInputStream stream, final Object2IntFunction<byte[]> addressMap) throws IOException {
+			this(stream, addressMap, Integer.MAX_VALUE, null);
+		}
 
 		public ReadTransactions(FastBufferedInputStream stream, final Object2IntFunction<byte[]> addressMap, final int numNodes, final ScatteredArcsASCIIGraph.Id2NodeMap map) throws IOException {
 			this.stream = stream;
