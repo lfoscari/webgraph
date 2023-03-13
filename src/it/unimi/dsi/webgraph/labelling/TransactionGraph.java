@@ -89,15 +89,15 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 	public long[] addresses;
 
 	public TransactionGraph(final InputStream inputsIs, final InputStream outputsIs) throws IOException {
-		this(inputsIs, outputsIs, null, -1, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING);
+		this(inputsIs, outputsIs, null, -1, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING, null);
 	}
 
 	public TransactionGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2IntFunction<byte[]> addressMap, final int numNodes) throws IOException {
-		this(inputsIs, outputsIs, addressMap, numNodes, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING);
+		this(inputsIs, outputsIs, addressMap, numNodes, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING, null);
 	}
 
-	public TransactionGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2IntFunction<byte[]> addressMap, final int numNodes, final Label labelPrototype, final LabelMapping labelMapping) throws IOException {
-		this(inputsIs, outputsIs, addressMap, numNodes, labelPrototype, labelMapping, DEFAULT_BATCH_SIZE, null, null, null);
+	public TransactionGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2IntFunction<byte[]> addressMap, final int numNodes, final Label labelPrototype, final LabelMapping labelMapping, final LabelMergeStrategy labelMergeStrategy) throws IOException {
+		this(inputsIs, outputsIs, addressMap, numNodes, labelPrototype, labelMapping, labelMergeStrategy, DEFAULT_BATCH_SIZE, null, null, null);
 	}
 
 	public TransactionGraph(
@@ -107,6 +107,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 			int numNodes,
 			final Label labelPrototype,
 			final LabelMapping labelMapping,
+			final LabelMergeStrategy labelMergeStrategy,
 			final int batchSize,
 			final Statistics statistics,
 			final File tempDir,
@@ -183,7 +184,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 					if (j == batchSize) {
 						obs.flush();
-						pairs += processTransposeBatch(batchSize, source, target, start, new InputBitStream(fbos.array), tempDir, batches, labelBatches, prototype, null);
+						pairs += processTransposeBatch(batchSize, source, target, start, new InputBitStream(fbos.array), tempDir, batches, labelBatches, prototype, labelMergeStrategy);
 						fbos = new FastByteArrayOutputStream();
 						obs = new OutputBitStream(fbos);
 						j = 0;
@@ -198,7 +199,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 
 		if (j != 0) {
 			obs.flush();
-			pairs += processTransposeBatch(j, source, target, start, new InputBitStream(fbos.array), tempDir, batches, labelBatches, prototype, null);
+			pairs += processTransposeBatch(j, source, target, start, new InputBitStream(fbos.array), tempDir, batches, labelBatches, prototype, labelMergeStrategy);
 		}
 
 		if (pl != null) {
@@ -215,7 +216,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		target = null;
 		start = null;
 
-		this.arcLabelledBatchGraph = new Transform.ArcLabelledBatchGraph(numNodes, pairs, batches, labelBatches, prototype, null);
+		this.arcLabelledBatchGraph = new Transform.ArcLabelledBatchGraph(numNodes, pairs, batches, labelBatches, prototype, labelMergeStrategy);
 	}
 
 	protected static void logBatches(final ObjectArrayList<File> batches, final long pairs, final ProgressLogger pl) {
@@ -230,7 +231,7 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		Logger logger = LoggerFactory.getLogger(TransactionGraph.class);
 		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
 
-		Path resources = new File("/mnt/sexus/extra/analysis/lfoscari").toPath(); // transactiontest
+		Path resources = new File("/mnt/sexus/extra/analysis/lfoscari").toPath();
 		Path artifacts = resources.resolve("artifacts");
 		Path inputsFile = resources.resolve("inputs.tsv");
 		Path outputsFile = resources.resolve("outputs.tsv");
@@ -242,19 +243,17 @@ public class TransactionGraph extends ImmutableSequentialGraph {
 		tempDir.deleteOnExit();
 
 		// TODO: Build a GOV3Function using the extract script
-		GOVMinimalPerfectHashFunction<MutableString> transactionsMap = (GOVMinimalPerfectHashFunction<MutableString>) BinIO.loadObject(artifacts.resolve("transactions.map").toFile());
+		GOV3Function<byte[]> transactionsMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("transactions.map").toFile());
 		GOV3Function<byte[]> addressMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("addresses.map").toFile());
-
 		Object2IntFunction<byte[]> addressFunction = (a) -> (int) addressMap.getLong(a);
 
+		Statistics statistics = new Statistics(statsDir, transactionsMap);
 		int maxBitsForTransactions = Long.BYTES * 8 - Long.numberOfLeadingZeros(transactionsMap.size64());
 		Label labelPrototype = new FixedWidthLongLabel("transaction-id", maxBitsForTransactions);
 		LabelMapping labelMapping = (prototype, representation) -> ((FixedWidthLongLabel) prototype).value = transactionsMap.getLong(new String(representation));
 		int numNodes = (int) addressMap.size64();
 
-		Statistics statistics = new Statistics(statsDir, transactionsMap);
-
-		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, labelPrototype, labelMapping, 2_000_000_000, statistics, tempDir, pl);
+		TransactionGraph graph = new TransactionGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, labelPrototype, labelMapping, null, 2_000_000_000, statistics, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
 
 		/* if (addressMap == null) {
