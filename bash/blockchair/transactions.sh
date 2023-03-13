@@ -11,6 +11,11 @@ OUTPUTSDIR=$2
 NTHREADS=$3
 SCRIPTDIR=$(dirname $(realpath $0))
 
-LC_ALL=C sort -S2G -mu \
-  $(bash $SCRIPTDIR/extract.sh $INPUTSDIR $NTHREADS input transaction) \
-  $(bash $SCRIPTDIR/extract.sh $OUTPUTSDIR $NTHREADS output transaction)
+INPUTS=$(mktemp)
+bash $SCRIPTDIR/extract.sh $INPUTSDIR $NTHREADS input transaction > $INPUTS
+
+OUTPUTS=$(mktemp)
+bash $SCRIPTDIR/extract.sh $OUTPUTSDIR $NTHREADS output transaction > $OUTPUTS
+
+LC_ALL=C sort -S2G -mu $INPUTS $OUTPUTS
+rm -f $INPUTS $OUTPUTS
