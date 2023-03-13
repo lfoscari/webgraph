@@ -52,7 +52,7 @@ import static it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.ge
 
 // TODO: Description and methods spec
 
-public class TransctionInputsOutputsASCIIGraph extends ImmutableSequentialGraph {
+public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph {
 	/**
 	 * The default batch size.
 	 */
@@ -68,7 +68,7 @@ public class TransctionInputsOutputsASCIIGraph extends ImmutableSequentialGraph 
 	/**
 	 * The default logger.
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(TransctionInputsOutputsASCIIGraph.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(TransactionInputsOutputsASCIIGraph.class);
 	/**
 	 * Toggle the debug mode.
 	 */
@@ -86,19 +86,19 @@ public class TransctionInputsOutputsASCIIGraph extends ImmutableSequentialGraph 
 	 */
 	public long[] addresses;
 
-	public TransctionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs) throws IOException {
+	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs) throws IOException {
 		this(inputsIs, outputsIs, null, -1, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING, null);
 	}
 
-	public TransctionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2IntFunction<byte[]> addressMap, final int numNodes) throws IOException {
+	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2IntFunction<byte[]> addressMap, final int numNodes) throws IOException {
 		this(inputsIs, outputsIs, addressMap, numNodes, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING, null);
 	}
 
-	public TransctionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2IntFunction<byte[]> addressMap, final int numNodes, final Label labelPrototype, final LabelMapping labelMapping, final LabelMergeStrategy labelMergeStrategy) throws IOException {
+	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2IntFunction<byte[]> addressMap, final int numNodes, final Label labelPrototype, final LabelMapping labelMapping, final LabelMergeStrategy labelMergeStrategy) throws IOException {
 		this(inputsIs, outputsIs, addressMap, numNodes, labelPrototype, labelMapping, labelMergeStrategy, DEFAULT_BATCH_SIZE, null, null, null);
 	}
 
-	public TransctionInputsOutputsASCIIGraph(
+	public TransactionInputsOutputsASCIIGraph(
 			final InputStream inputsIs,
 			final InputStream outputsIs,
 			final Object2IntFunction<byte[]> addressMap,
@@ -226,7 +226,7 @@ public class TransctionInputsOutputsASCIIGraph extends ImmutableSequentialGraph 
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		// TODO: handle parameters
 
-		Logger logger = LoggerFactory.getLogger(TransctionInputsOutputsASCIIGraph.class);
+		Logger logger = LoggerFactory.getLogger(TransactionInputsOutputsASCIIGraph.class);
 		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
 
 		Path resources = new File("/mnt/sexus/extra/analysis/lfoscari").toPath();
@@ -250,7 +250,7 @@ public class TransctionInputsOutputsASCIIGraph extends ImmutableSequentialGraph 
 		LabelMapping labelMapping = (prototype, representation) -> ((FixedWidthLongLabel) prototype).value = transactionsMap.getLong(new String(representation));
 		int numNodes = (int) addressMap.size64();
 
-		TransctionInputsOutputsASCIIGraph graph = new TransctionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, labelPrototype, labelMapping, null, 2_000_000_000, statistics, tempDir, pl);
+		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, labelPrototype, labelMapping, null, 2_000_000_000, statistics, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
 
 		/* if (addressMap == null) {
@@ -283,7 +283,7 @@ public class TransctionInputsOutputsASCIIGraph extends ImmutableSequentialGraph 
 	}
 
 	@Override
-	public TransctionInputsOutputsASCIIGraph copy() {
+	public TransactionInputsOutputsASCIIGraph copy() {
 		return this;
 	}
 
