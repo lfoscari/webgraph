@@ -25,8 +25,6 @@ import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
 import it.unimi.dsi.fastutil.io.FastBufferedOutputStream;
 import it.unimi.dsi.fastutil.io.FastByteArrayOutputStream;
-import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
-import it.unimi.dsi.fastutil.objects.Object2IntFunction;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.io.InputBitStream;
@@ -76,10 +74,6 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	 * Toggle the debug mode.
 	 */
 	private final static boolean DEBUG = false;
-	/**
-	 * Check address map during computation, reduces performance and is useless if you know the address map is accurate and complete.
-	 */
-	private final static boolean CHECK_ADDRESS_MAP = true;
 	/**
 	 * The extension of the identifier file (a binary list of longs).
 	 */
@@ -519,14 +513,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 				final byte[] address = Arrays.copyOfRange(array, start, offset);
 				addressId = (int) addressMap.getLong(address);
 
-				if (CHECK_ADDRESS_MAP) {
-					if (addressId < 0 || addressId >= numNodes) {
-						throw new IllegalArgumentException("Address node number out of range for node " + addressId + ": " + new String(array, start, offset - start));
-					}
-
-					if (addressId == addressMap.defaultReturnValue()) {
-						throw new IllegalArgumentException("Unknown address " + new String(address));
-					}
+				if (addressId < 0 || addressId >= numNodes) {
+					throw new IllegalArgumentException("Address node number out of range for node " + addressId + ": " + new String(array, start, offset - start));
 				}
 			}
 

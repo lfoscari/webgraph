@@ -20,13 +20,14 @@ package it.unimi.dsi.webgraph;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
 import it.unimi.dsi.fastutil.io.FastByteArrayInputStream;
-import it.unimi.dsi.fastutil.longs.Long2IntFunction;
 import it.unimi.dsi.fastutil.objects.*;
 import it.unimi.dsi.webgraph.labelling.*;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -39,11 +40,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
-	private static final Label gammaPrototype = new GammaCodedIntLabel("FOO");
-	private static final Long2IntFunction identity = Math::toIntExact;
-	private static final Object2IntFunction<byte[]> addressMap = (a) -> Integer.parseInt(new String((byte[]) a));
-	private static final LabelMapping hashcodeMapping = (label, st) -> ((GammaCodedIntLabel)label).value = Arrays.hashCode(st);
-	private static final LabelMapping integerMapping = (label, st) -> ((GammaCodedIntLabel)label).value = Integer.parseInt(new String(st));
+	private static final Object2LongFunction<byte[]> ADDRESS_MAP = (a) -> Long.parseLong(new String((byte[]) a));
 
 	private static FastByteArrayInputStream str2fbais(String s) {
 		return new FastByteArrayInputStream(s.getBytes(StandardCharsets.US_ASCII));
@@ -51,52 +48,6 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	private static FastBufferedInputStream str2fbis(final String x) {
 		return new FastBufferedInputStream(new ByteArrayInputStream(x.getBytes()));
-	}
-
-	private static Iterator<long[]> toArcsIterator(final String s) {
-		final String[] arcs = s.split("\n");
-		final List<long[]> arcSet = new ArrayList<>();
-		for (final String arc : arcs) {
-			final String[] parts = arc.split(" ");
-			arcSet.add(new long[] {Long.parseLong(parts[0]), Long.parseLong(parts[1])});
-		}
-		return arcSet.iterator();
-	}
-
-	private static Iterator<Label> toLabelIterator(final String s, LabelMapping mapping) {
-		Label copy = TransactionInputsOutputsASCIIGraphTest.gammaPrototype.copy();
-		final String[] labels = s.split(" ");
-		final List<Label> labelSet = new ArrayList<>();
-		for (final String label : labels) {
-			mapping.apply(copy, label.getBytes());
-			labelSet.add(copy.copy());
-		}
-		return labelSet.iterator();
-	}
-
-	private static int[][] getLabelValues(final ScatteredLabelledArcsASCIIGraph g) {
-		int[][] labelValues = new int[g.numNodes()][];
-		ArcLabelledNodeIterator it = g.nodeIterator();
-		for (int i = 0; i < g.numNodes(); i++) {
-			it.nextInt();
-			Label[] labels = it.labelArray();
-			labelValues[i] = Arrays.stream(labels).mapToInt(Label::getInt).toArray();
-		}
-		return labelValues;
-	}
-
-	private static class MergeIntegers implements LabelMergeStrategy {
-		private final Label prototype;
-
-		public MergeIntegers(Label prototype) {
-			this.prototype = prototype;
-		}
-
-		@Override
-		public Label merge(final Label first, final Label second) {
-			((GammaCodedIntLabel) prototype).value = first.getInt() + second.getInt();
-			return prototype;
-		}
 	}
 
 	@Test
@@ -154,7 +105,7 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 	@Test
 	public void testConstructorWithStrings() throws IOException {
 		final ImmutableGraph gg = ArrayListMutableGraph.newCompleteGraph(3, false).immutableView();
-		final Object2IntFunction<byte[]> map = new Object2IntOpenCustomHashMap<>(ByteArrays.HASH_STRATEGY);
+		final Object2LongFunction<byte[]> map = new Object2LongOpenCustomHashMap<>(ByteArrays.HASH_STRATEGY);
 		map.defaultReturnValue(-1);
 
 		map.clear();
@@ -170,7 +121,7 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testTargetOutOfRange() throws IOException {
-		final Object2IntFunction<byte[]> map = new Object2IntArrayMap<>();
+		final Object2LongFunction<byte[]> map = new Object2LongArrayMap<>();
 		map.defaultReturnValue(-1);
 		map.put("0".getBytes(), 0);
 		map.put("1".getBytes(), 1);
@@ -194,7 +145,7 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionOneLineTest() throws IOException {
-		TransactionInputsOutputsASCIIGraph.ReadTransactions in = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\nb 1\nc 2"), addressMap, Integer.MAX_VALUE, null);
+		TransactionInputsOutputsASCIIGraph.ReadTransactions in = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\nb 1\nc 2"), ADDRESS_MAP, Integer.MAX_VALUE, null);
 
 		assertArrayEquals(new int[] {0}, in.nextAddresses().toIntArray());
 		assertEquals("a", in.transaction(Charset.defaultCharset()));
@@ -208,8 +159,8 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionPairOneLineTest() throws IOException {
-		TransactionInputsOutputsASCIIGraph.ReadTransactions a = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0"), addressMap);
-		TransactionInputsOutputsASCIIGraph.ReadTransactions b = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 1"), addressMap);
+		TransactionInputsOutputsASCIIGraph.ReadTransactions a = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0"), ADDRESS_MAP);
+		TransactionInputsOutputsASCIIGraph.ReadTransactions b = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 1"), ADDRESS_MAP);
 
 		assertArrayEquals(new int[] {0}, a.nextAddresses().toIntArray());
 		assertEquals("a", a.transaction(Charset.defaultCharset()));
@@ -220,8 +171,8 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionPairMultipleLines() throws IOException {
-		TransactionInputsOutputsASCIIGraph.ReadTransactions a = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\nb 0\n c 0"), addressMap);
-		TransactionInputsOutputsASCIIGraph.ReadTransactions b = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("c 1"), addressMap);
+		TransactionInputsOutputsASCIIGraph.ReadTransactions a = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\nb 0\n c 0"), ADDRESS_MAP);
+		TransactionInputsOutputsASCIIGraph.ReadTransactions b = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("c 1"), ADDRESS_MAP);
 
 		assertArrayEquals(new int[] {0}, a.nextAddresses().toIntArray());
 		assertEquals("a", a.transaction(Charset.defaultCharset()));
@@ -244,8 +195,8 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionPairMultipleLinesInverted() throws IOException {
-		TransactionInputsOutputsASCIIGraph.ReadTransactions a = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("c 1"), addressMap);
-		TransactionInputsOutputsASCIIGraph.ReadTransactions b = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\nb 0\n c 0"), addressMap);
+		TransactionInputsOutputsASCIIGraph.ReadTransactions a = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("c 1"), ADDRESS_MAP);
+		TransactionInputsOutputsASCIIGraph.ReadTransactions b = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\nb 0\n c 0"), ADDRESS_MAP);
 
 		assertArrayEquals(new int[] {1}, a.nextAddresses().toIntArray());
 		assertEquals("c", a.transaction(Charset.defaultCharset()));
@@ -256,7 +207,7 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionMultipleLinesMultipleAddresses() throws IOException {
-		TransactionInputsOutputsASCIIGraph.ReadTransactions a = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\na 1\n a 2"), addressMap);
+		TransactionInputsOutputsASCIIGraph.ReadTransactions a = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\na 1\n a 2"), ADDRESS_MAP);
 
 		assertArrayEquals(new int[] {0, 1, 2}, a.nextAddresses().toIntArray());
 		assertEquals("a", a.transaction(Charset.defaultCharset()));
@@ -264,8 +215,8 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionPairMultipleLinesMultipleAddresses() throws IOException {
-		TransactionInputsOutputsASCIIGraph.ReadTransactions a = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\na 1\n a 2"), addressMap);
-		TransactionInputsOutputsASCIIGraph.ReadTransactions b = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\na 3"), addressMap);
+		TransactionInputsOutputsASCIIGraph.ReadTransactions a = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\na 1\n a 2"), ADDRESS_MAP);
+		TransactionInputsOutputsASCIIGraph.ReadTransactions b = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\na 3"), ADDRESS_MAP);
 
 		assertArrayEquals(new int[] {0, 1, 2}, a.nextAddresses().toIntArray());
 		assertEquals("a", a.transaction(Charset.defaultCharset()));
@@ -276,8 +227,8 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionPairMultipleLinesMultipleAddressesSkipping() throws IOException {
-		TransactionInputsOutputsASCIIGraph.ReadTransactions a = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("b 0\nb 1\n b 2"), addressMap);
-		TransactionInputsOutputsASCIIGraph.ReadTransactions b = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\na 0\na 0\nb 0\nb 3"), addressMap);
+		TransactionInputsOutputsASCIIGraph.ReadTransactions a = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("b 0\nb 1\n b 2"), ADDRESS_MAP);
+		TransactionInputsOutputsASCIIGraph.ReadTransactions b = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\na 0\na 0\nb 0\nb 3"), ADDRESS_MAP);
 
 		assertArrayEquals(new int[] {0, 1, 2}, a.nextAddresses().toIntArray());
 		assertEquals("b", a.transaction(Charset.defaultCharset()));
