@@ -222,6 +222,10 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		pl.logger().info("Created " + batches.size() + " batches using " + Util.format((double) Byte.SIZE * length / pairs) + " bits/arc.");
 	}
 
+	public static int batchSize(int transactionBits) {
+		return (int) ((1L << 31) - 1024) / transactionBits;
+	}
+
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		// TODO: handle parameters
 
@@ -256,7 +260,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			((FixedWidthLongLabel) prototype).value = id;
 		};
 
-		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressMap, numNodes, labelPrototype, labelMapping, null, 1_000_000_000, statistics, tempDir, pl);
+		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressMap, numNodes, labelPrototype, labelMapping, null, batchSize(maxBitsForTransactions), statistics, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
 
 		if (addressMap == null) {
