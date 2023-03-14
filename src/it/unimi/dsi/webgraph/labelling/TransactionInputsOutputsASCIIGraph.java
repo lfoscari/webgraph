@@ -229,7 +229,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		Logger logger = LoggerFactory.getLogger(TransactionInputsOutputsASCIIGraph.class);
 		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
 
-		Path resources = new File("/mnt/sexus/extra/analysis/lfoscari").toPath();
+		Path resources = new File("/mnt/big/analysis/lfoscari").toPath();
 		Path artifacts = resources.resolve("artifacts");
 		Path inputsFile = resources.resolve("inputs.tsv");
 		Path outputsFile = resources.resolve("outputs.tsv");
@@ -240,8 +240,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		File tempDir = Files.createTempDirectory(resources, "transactiongraph_tmp_").toFile();
 		tempDir.deleteOnExit();
 
-		GOV3Function<byte[]> transactionsMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("transactions.map").toFile());
-		GOV3Function<byte[]> addressMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("addresses.map").toFile());
+		GOV3Function<byte[]> transactionsMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("transaction.map").toFile()); // ~ 3GB
+		GOV3Function<byte[]> addressMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("address.map").toFile()); // ~ 4GB
 		Object2IntFunction<byte[]> addressFunction = (a) -> (int) addressMap.getLong(a);
 
 		Statistics statistics = new Statistics(statsDir, transactionsMap);
@@ -250,12 +250,12 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		LabelMapping labelMapping = (prototype, representation) -> ((FixedWidthLongLabel) prototype).value = transactionsMap.getLong(new String(representation));
 		int numNodes = (int) addressMap.size64();
 
-		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, labelPrototype, labelMapping, null, 2_000_000_000, statistics, tempDir, pl);
+		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, labelPrototype, labelMapping, null, 2_000_000, statistics, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
 
-		/* if (addressMap == null) {
-			BinIO.storeLongs(graph.addresses, basename + IDS_EXTENSION);
-		} */
+		if (addressMap == null) {
+			BinIO.storeLongs(graph.addresses, graphDir.resolve("bitcoin") + IDS_EXTENSION);
+		}
 	}
 
 	@Override
