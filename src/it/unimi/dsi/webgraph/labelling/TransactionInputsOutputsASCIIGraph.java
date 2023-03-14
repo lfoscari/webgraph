@@ -247,7 +247,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		Statistics statistics = new Statistics(statsDir, transactionsMap);
 		int maxBitsForTransactions = Long.BYTES * 8 - Long.numberOfLeadingZeros(transactionsMap.size64());
 		Label labelPrototype = new FixedWidthLongLabel("transaction-id", maxBitsForTransactions);
-		LabelMapping labelMapping = (prototype, representation) -> ((FixedWidthLongLabel) prototype).value = transactionsMap.getLong(new String(representation));
+		LabelMapping labelMapping = (prototype, representation) -> ((FixedWidthLongLabel) prototype).value = transactionsMap.getLong(representation);
 		int numNodes = (int) addressMap.size64();
 
 		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, labelPrototype, labelMapping, null, 2_000_000, statistics, tempDir, pl);
