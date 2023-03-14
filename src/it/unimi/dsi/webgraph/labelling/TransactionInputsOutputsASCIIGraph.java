@@ -20,6 +20,7 @@ package it.unimi.dsi.webgraph.labelling;
 import it.unimi.dsi.Util;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
 import it.unimi.dsi.fastutil.io.FastBufferedOutputStream;
@@ -73,6 +74,10 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	 * Toggle the debug mode.
 	 */
 	private final static boolean DEBUG = false;
+	/**
+	 * Check address map during computation, reduces performance and is useless if you know the address map is accurate and complete.
+	 */
+	private final static boolean CHECK_ADDRESS_MAP = true;
 	/**
 	 * The extension of the identifier file (a binary list of longs).
 	 */
@@ -243,16 +248,20 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		GOV3Function<byte[]> transactionsMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("transaction.map").toFile()); // ~ 3GB
 		GOV3Function<byte[]> addressMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("address.map").toFile()); // ~ 4GB
 		Object2IntFunction<byte[]> addressFunction = (a) -> (int) addressMap.getLong(a);
+		int numNodes = (int) addressMap.size64();
 
-		Statistics statistics = new Statistics(statsDir, transactionsMap);
-		int maxBitsForTransactions = Long.BYTES * 8 - Long.numberOfLeadingZeros(transactionsMap.size64()) + 1;
+		Statistics statistics = null; // new Statistics(statsDir, transactionsMap);
+
+		int maxBitsForTransactions = Long.BYTES * 8 - Long.numberOfLeadingZeros(transactionsMap.size64());
+		pl.logger.info("Using " + maxBitsForTransactions + " bit for each transaction identifier");
+
 		Label labelPrototype = new FixedWidthLongLabel("transaction-id", maxBitsForTransactions);
-		LabelMapping labelMapping = (prototype, representation) -> {
-			long id = transactionsMap.getLong(representation);
-			if (id == transactionsMap.defaultReturnValue()) throw new IllegalArgumentException("Unknown transaction " + new String(representation));
+		long transactionDefault = transactionsMap.defaultReturnValue();
+		LabelMapping labelMapping = (prototype, transaction) -> {
+			long id = transactionsMap.getLong(transaction);
+			if (id == transactionDefault) throw new IllegalArgumentException("Unknown transaction " + new String(transaction));
 			((FixedWidthLongLabel) prototype).value = id;
 		};
-		int numNodes = (int) addressMap.size64();
 
 		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, labelPrototype, labelMapping, null, 1_000_000_000, statistics, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
@@ -309,30 +318,27 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		return ms.toString();
 	}
 
-	// Stats:
-	// - # of inputs and outputs
-	// - # of duplicates inputs and outputs
-	// - ???
-
 	private static class Statistics implements Closeable {
 		private final GOV3Function<byte[]> transactionMap;
 
 		private final FastBufferedOutputStream amountInputsOutputs;
 		private final FastBufferedOutputStream duplicateInputsOutputs;
 
-		public Statistics(Path statisticsDirectory, GOV3Function<byte[]> map) throws FileNotFoundException {
+		public Statistics(Path statisticsDirectory, GOV3Function<byte[]> map) throws IOException {
 			transactionMap = map;
-			amountInputsOutputs = new FastBufferedOutputStream(new FileOutputStream(statisticsDirectory.resolve("amounts").toFile()));
-			duplicateInputsOutputs = new FastBufferedOutputStream(new FileOutputStream(statisticsDirectory.resolve("duplicates").toFile()));
+			amountInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("amounts")));
+			duplicateInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("duplicates")));
 		}
 
 		public void update(byte[] transaction, IntArrayList inputAddresses, IntArrayList outputAddresses) throws IOException {
-			long uniqueInputs, uniqueOutputs, transactionId;
+			long uniqueInputs = uniqueAddressesAmount(inputAddresses),
+				uniqueOutputs = uniqueAddressesAmount(outputAddresses),
+				transactionId = transactionMap.getLong(transaction);
 
 			MutableString mb = new MutableString();
-			mb.append(transactionId = transactionMap.getLong(transaction));
-			mb.append(uniqueInputs = uniqueAddressesAmount(inputAddresses));
-			mb.append(uniqueOutputs = uniqueAddressesAmount(outputAddresses));
+			mb.append(transactionId);
+			mb.append(uniqueInputs);
+			mb.append(uniqueOutputs);
 			mb.append("\n");
 			mb.writeSelfDelimUTF8(amountInputsOutputs);
 
@@ -346,7 +352,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 		private static long uniqueAddressesAmount(final IntArrayList addresses) {
 			if (addresses.size() == 0) return 0;
-			return addresses.stream().distinct().count();
+			return new IntOpenHashSet(addresses).size();
 		}
 
 		@Override
@@ -514,12 +520,14 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 				final byte[] address = Arrays.copyOfRange(array, start, offset);
 				addressId = addressMap.getInt(address);
 
-				if (addressId == addressMap.defaultReturnValue()) {
-					throw new IllegalArgumentException("Unknown address " + new String(address));
-				}
+				if (CHECK_ADDRESS_MAP) {
+					if (addressId < 0 || addressId >= numNodes) {
+						throw new IllegalArgumentException("Address node number out of range for node " + addressId + ": " + new String(array, start, offset - start));
+					}
 
-				if (addressId < 0 || addressId >= numNodes) {
-					throw new IllegalArgumentException("Address node number out of range for node " + addressId + ": " + new String(array, start, offset - start));
+					if (addressId == addressMap.defaultReturnValue()) {
+						throw new IllegalArgumentException("Unknown address " + new String(address));
+					}
 				}
 			}
 
