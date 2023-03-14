@@ -245,8 +245,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 		GOV3Function<byte[]> transactionsMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("transaction.map").toFile()); // ~ 3GB
 		GOV3Function<byte[]> addressMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("address.map").toFile()); // ~ 4GB
-		Object2IntFunction<byte[]> addressFunction = (a) -> (int) addressMap.getLong(a);
-		addressFunction.defaultReturnValue((int) addressMap.defaultReturnValue());
+		Object2IntFunction<byte[]> addressFunction = addressMap.andThenInt(l -> (int) l);
 		int numNodes = (int) addressMap.size64();
 
 		Statistics statistics = null; // new Statistics(statsDir, transactionsMap);
