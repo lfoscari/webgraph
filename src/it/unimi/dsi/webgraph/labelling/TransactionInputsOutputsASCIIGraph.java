@@ -116,8 +116,6 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			final File tempDir,
 			final ProgressLogger pl) throws IOException {
 
-		// Inputs and outputs are in the form <transaction> <address> and sorted by transaction.
-
 		if (addressMap != null && numNodes < 0) {
 			throw new IllegalArgumentException("Negative number of nodes");
 		}
@@ -128,7 +126,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		final ReadTransactions outputs = new ReadTransactions(new FastBufferedInputStream(outputsIs), addressMap, numNodes, map);
 
 		int j = 0;
-		long pairs = 0; // Number of pairs
+		long pairs = 0;
 
 		int[] source = new int[batchSize], target = new int[batchSize];
 		long[] start = new long[batchSize];
@@ -248,6 +246,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		GOV3Function<byte[]> transactionsMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("transaction.map").toFile()); // ~ 3GB
 		GOV3Function<byte[]> addressMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("address.map").toFile()); // ~ 4GB
 		Object2IntFunction<byte[]> addressFunction = (a) -> (int) addressMap.getLong(a);
+		addressFunction.defaultReturnValue((int) addressMap.defaultReturnValue());
 		int numNodes = (int) addressMap.size64();
 
 		Statistics statistics = null; // new Statistics(statsDir, transactionsMap);
