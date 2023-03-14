@@ -245,12 +245,16 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		Object2IntFunction<byte[]> addressFunction = (a) -> (int) addressMap.getLong(a);
 
 		Statistics statistics = new Statistics(statsDir, transactionsMap);
-		int maxBitsForTransactions = Long.BYTES * 8 - Long.numberOfLeadingZeros(transactionsMap.size64());
+		int maxBitsForTransactions = Long.BYTES * 8 - Long.numberOfLeadingZeros(transactionsMap.size64()) + 1;
 		Label labelPrototype = new FixedWidthLongLabel("transaction-id", maxBitsForTransactions);
-		LabelMapping labelMapping = (prototype, representation) -> ((FixedWidthLongLabel) prototype).value = transactionsMap.getLong(representation);
+		LabelMapping labelMapping = (prototype, representation) -> {
+			long id = transactionsMap.getLong(representation);
+			if (id == transactionsMap.defaultReturnValue()) throw new IllegalArgumentException("Unknown transaction " + new String(representation));
+			((FixedWidthLongLabel) prototype).value = id;
+		};
 		int numNodes = (int) addressMap.size64();
 
-		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, labelPrototype, labelMapping, null, 2_000_000, statistics, tempDir, pl);
+		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, labelPrototype, labelMapping, null, 1_000_000_000, statistics, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
 
 		if (addressMap == null) {
@@ -509,6 +513,10 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			} else {
 				final byte[] address = Arrays.copyOfRange(array, start, offset);
 				addressId = addressMap.getInt(address);
+
+				if (addressId == addressMap.defaultReturnValue()) {
+					throw new IllegalArgumentException("Unknown address " + new String(address));
+				}
 
 				if (addressId < 0 || addressId >= numNodes) {
 					throw new IllegalArgumentException("Address node number out of range for node " + addressId + ": " + new String(array, start, offset - start));
