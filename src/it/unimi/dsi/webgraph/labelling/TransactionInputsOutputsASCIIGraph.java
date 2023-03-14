@@ -251,7 +251,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		Statistics statistics = null; // new Statistics(statsDir, transactionsMap);
 
 		int maxBitsForTransactions = Long.BYTES * 8 - Long.numberOfLeadingZeros(transactionsMap.size64());
-		pl.logger.info("Using " + maxBitsForTransactions + " bit for each transaction identifier");
+		pl.logger.info("Using " + maxBitsForTransactions + " bits for each transaction identifier");
 
 		Label labelPrototype = new FixedWidthLongLabel("transaction-id", maxBitsForTransactions);
 		long transactionDefault = transactionsMap.defaultReturnValue();

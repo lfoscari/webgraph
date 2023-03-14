@@ -26,4 +26,5 @@ for FILE in $FILES; do
 done
 
 tail -n +2 -q ${FILES[@]} | cut -f"$OFFSET" > "$TMP"
-java it.unimi.dsi.sux4j.mph.GOV3Function -b "$MAP" "$TMP"
+java it.unimi.dsi.sux4j.mph.GOV3Function -b -T . "$MAP" "$TMP"
+rm -f $TMP

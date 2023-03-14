@@ -30,7 +30,7 @@ public class FixedWidthLongLabel extends AbstractLongLabel {
 	/** The bit width used to represent the value of this label. */
 	protected final int width;
 
-	/** Creates a new fixed-width int label.
+	/** Creates a new fixed-width long label.
 	 *
 	 * @param key the (only) key of this label.
 	 * @param width the label width (in bits).
@@ -43,13 +43,13 @@ public class FixedWidthLongLabel extends AbstractLongLabel {
 		this.width = width;
 	}
 
-	/** Creates a new fixed-width int label of value 0.
+	/** Creates a new fixed-width long label of value 0.
 	 *
 	 * @param key the (only) key of this label.
 	 * @param width the label width (in bits).
 	 */
 	public FixedWidthLongLabel(final String key, final int width) {
-		this(key, width, 0);
+		this(key, width, 0L);
 	}
 
 	/** Creates a new fixed-width integer label using the given key and width
