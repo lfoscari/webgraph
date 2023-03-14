@@ -25,7 +25,9 @@ import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
 import it.unimi.dsi.fastutil.io.FastBufferedOutputStream;
 import it.unimi.dsi.fastutil.io.FastByteArrayOutputStream;
+import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2IntFunction;
+import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.io.InputBitStream;
 import it.unimi.dsi.io.OutputBitStream;
@@ -95,18 +97,18 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		this(inputsIs, outputsIs, null, -1, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING, null);
 	}
 
-	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2IntFunction<byte[]> addressMap, final int numNodes) throws IOException {
+	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2LongFunction<byte[]> addressMap, final int numNodes) throws IOException {
 		this(inputsIs, outputsIs, addressMap, numNodes, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING, null);
 	}
 
-	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2IntFunction<byte[]> addressMap, final int numNodes, final Label labelPrototype, final LabelMapping labelMapping, final LabelMergeStrategy labelMergeStrategy) throws IOException {
+	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2LongFunction<byte[]> addressMap, final int numNodes, final Label labelPrototype, final LabelMapping labelMapping, final LabelMergeStrategy labelMergeStrategy) throws IOException {
 		this(inputsIs, outputsIs, addressMap, numNodes, labelPrototype, labelMapping, labelMergeStrategy, DEFAULT_BATCH_SIZE, null, null, null);
 	}
 
 	public TransactionInputsOutputsASCIIGraph(
 			final InputStream inputsIs,
 			final InputStream outputsIs,
-			final Object2IntFunction<byte[]> addressMap,
+			final Object2LongFunction<byte[]> addressMap,
 			int numNodes,
 			final Label labelPrototype,
 			final LabelMapping labelMapping,
@@ -245,7 +247,6 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 		GOV3Function<byte[]> transactionsMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("transaction.map").toFile()); // ~ 3GB
 		GOV3Function<byte[]> addressMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("address.map").toFile()); // ~ 4GB
-		Object2IntFunction<byte[]> addressFunction = addressMap.andThenInt(l -> (int) l);
 		int numNodes = (int) addressMap.size64();
 
 		Statistics statistics = null; // new Statistics(statsDir, transactionsMap);
@@ -261,7 +262,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			((FixedWidthLongLabel) prototype).value = id;
 		};
 
-		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressFunction, numNodes, labelPrototype, labelMapping, null, 1_000_000_000, statistics, tempDir, pl);
+		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressMap, numNodes, labelPrototype, labelMapping, null, 1_000_000_000, statistics, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
 
 		if (addressMap == null) {
@@ -362,7 +363,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 	public static class ReadTransactions {
 		private final FastBufferedInputStream stream;
-		private final Object2IntFunction<byte[]> addressMap;
+		private final Object2LongFunction<byte[]> addressMap;
 		private final int numNodes;
 
 		private final IntArrayList addresses = new IntArrayList(512);
@@ -379,11 +380,11 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		public byte[] previousLine = new byte[1024];
 		public byte[] currentLine = new byte[1024];
 
-		public ReadTransactions(FastBufferedInputStream stream, final Object2IntFunction<byte[]> addressMap) throws IOException {
+		public ReadTransactions(FastBufferedInputStream stream, final Object2LongFunction<byte[]> addressMap) throws IOException {
 			this(stream, addressMap, Integer.MAX_VALUE, null);
 		}
 
-		public ReadTransactions(FastBufferedInputStream stream, final Object2IntFunction<byte[]> addressMap, final int numNodes, final ScatteredArcsASCIIGraph.Id2NodeMap map) throws IOException {
+		public ReadTransactions(FastBufferedInputStream stream, final Object2LongFunction<byte[]> addressMap, final int numNodes, final ScatteredArcsASCIIGraph.Id2NodeMap map) throws IOException {
 			this.stream = stream;
 			this.addressMap = addressMap;
 			this.numNodes = numNodes;
@@ -516,7 +517,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 				addressId = map.getNode(id);
 			} else {
 				final byte[] address = Arrays.copyOfRange(array, start, offset);
-				addressId = addressMap.getInt(address);
+				addressId = (int) addressMap.getLong(address);
 
 				if (CHECK_ADDRESS_MAP) {
 					if (addressId < 0 || addressId >= numNodes) {
