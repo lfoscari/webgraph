@@ -249,8 +249,9 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 		Statistics statistics = null; // new Statistics(statsDir, transactionsMap);
 
-		int maxBitsForTransactions = Long.BYTES * 8 - Long.numberOfLeadingZeros(transactionsMap.size64());
-		pl.logger.info("Using " + maxBitsForTransactions + " bits for each transaction identifier");
+		int maxBitsForTransactions = 64 - Long.numberOfLeadingZeros(transactionsMap.size64() - 1);
+		int batchSize = batchSize(maxBitsForTransactions);
+		pl.logger.info("Using " + maxBitsForTransactions + " bits for each transaction identifier and " + batchSize + " elements per batch");
 
 		Label labelPrototype = new FixedWidthLongLabel("transaction-id", maxBitsForTransactions);
 		long transactionDefault = transactionsMap.defaultReturnValue();
@@ -260,7 +261,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			((FixedWidthLongLabel) prototype).value = id;
 		};
 
-		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressMap, numNodes, labelPrototype, labelMapping, null, batchSize(maxBitsForTransactions), statistics, tempDir, pl);
+		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressMap, numNodes, labelPrototype, labelMapping, null, batchSize, statistics, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
 
 		if (addressMap == null) {
