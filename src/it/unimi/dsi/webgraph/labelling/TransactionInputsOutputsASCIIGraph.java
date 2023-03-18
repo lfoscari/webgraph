@@ -232,7 +232,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		Logger logger = LoggerFactory.getLogger(TransactionInputsOutputsASCIIGraph.class);
 		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
 
-		Path resources = new File("/mnt/extra/analysis/lfoscari/bitcoin").toPath();
+		Path resources = new File("/mnt/big/analysis/lfoscari/bitcoin").toPath();
 		Path artifacts = resources.resolve("artifacts");
 		Path inputsFile = artifacts.resolve("inputs.tsv");
 		Path outputsFile = artifacts.resolve("outputs.tsv");
