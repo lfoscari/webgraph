@@ -229,6 +229,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		// TODO: handle parameters
 
+		System.setOut(new PrintStream("./transaction.log"));
+
 		Logger logger = LoggerFactory.getLogger(TransactionInputsOutputsASCIIGraph.class);
 		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
 
@@ -240,7 +242,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		Path statsDir = resources.resolve("stats");
 
 		graphDir.toFile().mkdir();
-		File tempDir = Files.createTempDirectory(resources, "transactiongraph_tmp_").toFile();
+		File tempDir = Files.createTempDirectory(resources, "transactiongraph").toFile();
 		tempDir.deleteOnExit();
 
 		GOV3Function<byte[]> transactionsMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("transaction.map").toFile());
@@ -254,12 +256,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		pl.logger.info("Using " + (64 - Long.numberOfLeadingZeros(transactionsMap.size64() - 1)) + " bits for each transaction identifier and " + batchSize + " elements per batch");
 
 		Label labelPrototype = new FixedWidthLongLabel("transaction-id", maxBitsForTransactions);
-		long transactionDefault = transactionsMap.defaultReturnValue();
-		LabelMapping labelMapping = (prototype, transaction) -> {
-			long id = transactionsMap.getLong(transaction);
-			if (id == transactionDefault) throw new IllegalArgumentException("Unknown transaction " + new String(transaction));
-			((FixedWidthLongLabel) prototype).value = id;
-		};
+		LabelMapping labelMapping = (prototype, transaction) -> ((FixedWidthLongLabel) prototype).value = transactionsMap.getLong(transaction);
 
 		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressMap, numNodes, labelPrototype, labelMapping, null, batchSize, statistics, tempDir, pl);
 		BVGraph.store(graph, "bitcoin-underlying");
