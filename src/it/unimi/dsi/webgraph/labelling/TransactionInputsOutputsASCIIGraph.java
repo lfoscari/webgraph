@@ -229,8 +229,6 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		// TODO: handle parameters
 
-		System.setOut(new PrintStream("./transaction.log"));
-
 		Logger logger = LoggerFactory.getLogger(TransactionInputsOutputsASCIIGraph.class);
 		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
 		pl.displayFreeMemory = true;
