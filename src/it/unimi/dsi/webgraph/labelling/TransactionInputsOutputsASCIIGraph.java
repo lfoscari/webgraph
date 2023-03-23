@@ -255,8 +255,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		LabelMapping labelMapping = (prototype, transaction) -> ((FixedWidthLongLabel) prototype).value = transactionsMap.getLong(transaction);
 
 		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressMap, numNodes, labelPrototype, labelMapping, null, batchSize, statistics, tempDir, pl);
-		EFGraph.store(graph, "bitcoin-underlying", pl);
-		BitStreamArcLabelledImmutableGraph.store(graph.arcLabelledBatchGraph, "bitcoin", "bitcoin-underlying", pl);
+		EFGraph.store(graph, graphDir.resolve("bitcoin-underlying").toString(), pl);
+		BitStreamArcLabelledImmutableGraph.store(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
 
 		if (addressMap == null) {
 			BinIO.storeLongs(graph.addresses, graphDir.resolve("bitcoin") + IDS_EXTENSION);
