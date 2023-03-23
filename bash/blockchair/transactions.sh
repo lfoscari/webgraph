@@ -1,4 +1,7 @@
-#!/bin/bash -e
+#!/bin/bash
+
+set -e
+set -o pipefail
 
 if [[ "$3" == "" ]]; then
 	"$(basename $0) INPUTSDIR OUTPUTSDIR NTHREADS" 1>&2

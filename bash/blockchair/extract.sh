@@ -1,4 +1,7 @@
-#!/bin/bash -e
+#!/bin/bash
+
+set -e
+set -o pipefail
 
 # TODO: rewrite
 if [[ "$3" == "" ]]; then

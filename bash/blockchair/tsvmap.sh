@@ -1,4 +1,7 @@
-#!/bin/bash -e
+#!/bin/bash
+
+set -e
+set -o pipefail
 
 if [[ "$3" == "" ]]; then
 	echo "$(basename $0) DIR|FILE OFFSET MAPFILE" 1>&2
