@@ -32,10 +32,7 @@ import it.unimi.dsi.io.OutputBitStream;
 import it.unimi.dsi.lang.MutableString;
 import it.unimi.dsi.logging.ProgressLogger;
 import it.unimi.dsi.sux4j.mph.GOV3Function;
-import it.unimi.dsi.webgraph.BVGraph;
-import it.unimi.dsi.webgraph.ImmutableSequentialGraph;
-import it.unimi.dsi.webgraph.ScatteredArcsASCIIGraph;
-import it.unimi.dsi.webgraph.Transform;
+import it.unimi.dsi.webgraph.*;
 import it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.LabelMapping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -258,8 +255,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		LabelMapping labelMapping = (prototype, transaction) -> ((FixedWidthLongLabel) prototype).value = transactionsMap.getLong(transaction);
 
 		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressMap, numNodes, labelPrototype, labelMapping, null, batchSize, statistics, tempDir, pl);
-		BVGraph.store(graph, "bitcoin-underlying");
-		BitStreamArcLabelledImmutableGraph.store(graph.arcLabelledBatchGraph, "bitcoin", "bitcoin-underlying");
+		EFGraph.store(graph, "bitcoin-underlying", pl);
+		BitStreamArcLabelledImmutableGraph.store(graph.arcLabelledBatchGraph, "bitcoin", "bitcoin-underlying", pl);
 
 		if (addressMap == null) {
 			BinIO.storeLongs(graph.addresses, graphDir.resolve("bitcoin") + IDS_EXTENSION);
