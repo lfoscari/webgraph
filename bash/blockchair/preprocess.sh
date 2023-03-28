@@ -9,6 +9,10 @@ if [[ "$3" == "" ]]; then
 	exit 1
 fi
 
+INPUTSDIR=$1
+OUTPUTSDIR=$2
+NTHREADS=$3
+
 SECONDS=0
 TMPDIR=$(mktemp -d -p "$(pwd)")
 
