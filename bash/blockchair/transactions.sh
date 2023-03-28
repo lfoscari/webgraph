@@ -4,7 +4,7 @@ set -e
 set -o pipefail
 
 if [[ "$3" == "" ]]; then
-	"$(basename $0) INPUTSDIR OUTPUTSDIR NTHREADS" 1>&2
+	echo "$(basename $0) INPUTSDIR OUTPUTSDIR NTHREADS" 1>&2
 	echo "Reads inputs in INPUTSDIR and outputs in OUTPUTSDIR and extracts the sorted transactions." 1>&2
 	exit 1
 fi

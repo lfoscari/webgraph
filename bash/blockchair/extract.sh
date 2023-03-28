@@ -5,12 +5,11 @@ set -o pipefail
 
 # TODO: rewrite
 if [[ "$3" == "" ]]; then
-	echo "$(basename $0) DIR NTHREADS {INPUT|OUTPUT} [ADDRESS|TRANSACTION]" 1>&2
+	echo "$(basename "$0") DIR NTHREADS {INPUT|OUTPUT} [ADDRESS|TRANSACTION]" 1>&2
 	echo "Reads files in DIR and processes them using NTHREADS parallel sorts." 1>&2
-	echo "Files are processed as input files if \"input\" is specified or as output files if \"output\" is specified." 1>&2
-	echo "If no further option is specified, addresses and transactions will be extracted from the files." 1>&2
-	echo "By specifying either \"address\" or \"transaction\" is possible to choose." 1>&2
-	echo "FILES MUST END WITH A NEWLINE. Fix them with \"sed -i -e '\$a\\' *\"." 1>&2
+	echo "Files are processed as inputs is \"input\" is specified, otherwise as outputs if \"output\" is specified." 1>&2
+	echo "If no further option is given, addresses and transactions will be extracted from the files, sorting by transaction." 1>&2
+	echo "Otherwise by specifying either \"address\" or \"transaction\" it is possible to choose." 1>&2
 	exit 1
 fi
 
