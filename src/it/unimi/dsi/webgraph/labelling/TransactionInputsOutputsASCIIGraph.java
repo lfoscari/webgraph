@@ -232,6 +232,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		pl.displayFreeMemory = true;
 
 		Scanner sc = new Scanner(System.in);
+		System.out.print("cryptocurrency: ");
 		Path resources =  new File(sc.nextLine()).toPath();
 		Path artifacts = resources.resolve("artifacts");
 		Path inputsFile = artifacts.resolve("inputs.tsv");
