@@ -16,23 +16,47 @@ NTHREADS=$3
 SECONDS=0
 _TMPDIR=$(mktemp -d -p "$(pwd)")
 
-echo "Extracting inputs"
-TMPDIR=$_TMPDIR bash ~/transactiongraph/bash/blockchair/extract.sh $INPUTSDIR $NTHREADS input > inputs.tsv
+if [[ -f inputs.tsv ]]; then
+	echo "Inputs already computed"
+else
+	echo "Extracting inputs"
+	TMPDIR=$_TMPDIR bash ~/transactiongraph/bash/blockchair/extract.sh $INPUTSDIR $NTHREADS input > inputs.tsv
+fi
 
-echo "Extracting outputs"
-TMPDIR=$_TMPDIR bash ~/transactiongraph/bash/blockchair/extract.sh $OUTPUTSDIR $NTHREADS output > outputs.tsv
+if [[ -f outputs.tsv ]]; then
+	echo "Outputs already computed"
+else
+	echo "Extracting outputs"
+	TMPDIR=$_TMPDIR bash ~/transactiongraph/bash/blockchair/extract.sh $OUTPUTSDIR $NTHREADS output > outputs.tsv
+fi
 
-echo "Extracting addresses"
-TMPDIR=$_TMPDIR bash ~/transactiongraph/bash/blockchair/addresses.sh $INPUTSDIR $OUTPUTSDIR $NTHREADS > addresses.tsv
+if [[ -f addresses.tsv ]]; then
+	echo "Addresses already computed"
+else
+	echo "Extracting addresses"
+	TMPDIR=$_TMPDIR bash ~/transactiongraph/bash/blockchair/addresses.sh $INPUTSDIR $OUTPUTSDIR $NTHREADS > addresses.tsv
+fi
 
-echo "Extracting transactions"
-TMPDIR=$_TMPDIR bash ~/transactiongraph/bash/blockchair/transactions.sh $INPUTSDIR $OUTPUTSDIR $NTHREADS > transactions.tsv
+if [[ -f transactions.tsv ]]; then
+	echo "Transactions already computed"
+else
+	echo "Extracting transactions"
+	TMPDIR=$_TMPDIR bash ~/transactiongraph/bash/blockchair/transactions.sh $INPUTSDIR $OUTPUTSDIR $NTHREADS > transactions.tsv
+fi
 
-echo "Computing address map"
-TMPDIR=$_TMPDIR java -Djava.io.tmpdir="$_TMPDIR" it.unimi.dsi.sux4j.mph.GOV3Function -b -s 10 address.map addresses.tsv
+if [[ -f address.map ]]; then
+	echo "Address map already computed"
+else
+	echo "Computing address map"
+	TMPDIR=$_TMPDIR java -Djava.io.tmpdir="$_TMPDIR" it.unimi.dsi.sux4j.mph.GOV3Function -b -s 10 address.map addresses.tsv
+fi
 
-echo "Computing transaction map"
-TMPDIR=$_TMPDIR java -Djava.io.tmpdir="$_TMPDIR" it.unimi.dsi.sux4j.mph.GOV3Function -b -s 10 transaction.map transactions.tsv
+if [[ -f transaction.map ]]; then
+	echo "Transaction map  already computed"
+else
+	echo "Computing transaction map"
+	TMPDIR=$_TMPDIR java -Djava.io.tmpdir="$_TMPDIR" it.unimi.dsi.sux4j.mph.GOV3Function -b -s 10 transaction.map transactions.tsv
+fi
 
 echo "$((SECONDS / 60 / 60)) hours, $((SECONDS / 60 % 60)) minutes and $((SECONDS % 60)) seconds elapsed"
 rm -rf $_TMPDIR
