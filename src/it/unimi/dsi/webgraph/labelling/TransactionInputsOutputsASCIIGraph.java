@@ -42,6 +42,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
 import static it.unimi.dsi.fastutil.io.FastBufferedInputStream.*;
@@ -230,7 +231,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
 		pl.displayFreeMemory = true;
 
-		Path resources = new File("/mnt/big/analysis/lfoscari/bitcoin").toPath();
+		Scanner sc = new Scanner(System.in);
+		Path resources =  new File(sc.nextLine()).toPath();
 		Path artifacts = resources.resolve("artifacts");
 		Path inputsFile = artifacts.resolve("inputs.tsv");
 		Path outputsFile = artifacts.resolve("outputs.tsv");
