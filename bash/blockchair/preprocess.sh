@@ -29,9 +29,10 @@ echo "Extracting transactions"
 TMPDIR=$_TMPDIR bash ~/transactiongraph/bash/blockchair/transactions.sh $INPUTSDIR $OUTPUTSDIR $NTHREADS > transactions.tsv
 
 echo "Computing address map"
-TMPDIR=$_TMPDIR java -Djava.io.tmpdir="$TMPDIR" it.unimi.dsi.sux4j.mph.GOV3Function -b -s 10 address.map addresses.tsv
+TMPDIR=$_TMPDIR java -Djava.io.tmpdir="$_TMPDIR" it.unimi.dsi.sux4j.mph.GOV3Function -b -s 10 address.map addresses.tsv
 
 echo "Computing transaction map"
-TMPDIR=$_TMPDIR java -Djava.io.tmpdir="$TMPDIR" it.unimi.dsi.sux4j.mph.GOV3Function -b -s 10 transaction.map transactions.tsv
+TMPDIR=$_TMPDIR java -Djava.io.tmpdir="$_TMPDIR" it.unimi.dsi.sux4j.mph.GOV3Function -b -s 10 transaction.map transactions.tsv
 
 echo "$((SECONDS / 60 / 60)) hours, $((SECONDS / 60 % 60)) minutes and $((SECONDS % 60)) seconds elapsed"
+rm -rf $_TMPDIR
