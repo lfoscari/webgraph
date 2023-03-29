@@ -48,14 +48,14 @@ if [[ -f address.map ]]; then
 	echo "Address map already computed"
 else
 	echo "Computing address map"
-	java -Djava.io.tmpdir="$_TMPDIR" it.unimi.dsi.sux4j.mph.GOV3Function -b -s 10 address.map addresses.tsv
+	java -Djava.io.tmpdir="$TMPDIR" it.unimi.dsi.sux4j.mph.GOV3Function -b -s 10 address.map addresses.tsv
 fi
 
 if [[ -f transaction.map ]]; then
 	echo "Transaction map  already computed"
 else
 	echo "Computing transaction map"
-	java -Djava.io.tmpdir="$_TMPDIR" it.unimi.dsi.sux4j.mph.GOV3Function -b -s 10 transaction.map transactions.tsv
+	java -Djava.io.tmpdir="$TMPDIR" it.unimi.dsi.sux4j.mph.GOV3Function -b -s 10 transaction.map transactions.tsv
 fi
 
 echo "$((SECONDS / 60 / 60)) hours, $((SECONDS / 60 % 60)) minutes and $((SECONDS % 60)) seconds elapsed"
