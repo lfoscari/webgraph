@@ -433,14 +433,18 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 			MutableString mb = new MutableString();
 			mb.append(transactionMap != null ? transactionMap.getLong(transaction) : transaction);
+			mb.append(" ");
 			mb.append(uniqueInputs);
+			mb.append(" ");
 			mb.append(uniqueOutputs);
 			mb.append("\n");
 			mb.writeSelfDelimUTF8(amountInputsOutputs);
 
 			mb.length(0);
 			mb.append(transactionMap != null ? transactionMap.getLong(transaction) : transaction);
+			mb.append(" ");
 			mb.append(inputAddresses.size() - uniqueInputs);
+			mb.append(" ");
 			mb.append(outputAddresses.size() - uniqueOutputs);
 			mb.append("\n");
 			mb.writeSelfDelimUTF8(duplicateInputsOutputs);
