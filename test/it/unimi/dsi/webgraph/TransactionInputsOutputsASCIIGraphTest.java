@@ -42,12 +42,31 @@ import static org.junit.Assert.assertEquals;
 public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 	private static final Object2LongFunction<byte[]> ADDRESS_MAP = (a) -> Long.parseLong(new String((byte[]) a));
 
+	byte[] currentLine;
+	int transactionStart, transactionEnd;
+
+	private void updateTransactionLine(TransactionInputsOutputsASCIIGraph.ReadTransactions a) {
+		currentLine = (byte[]) extract(a, "currentLine");
+		transactionStart = (int) extract(a, "transactionStart");
+		transactionEnd = (int) extract(a, "transactionEnd");
+	}
+
 	private static FastByteArrayInputStream str2fbais(String s) {
 		return new FastByteArrayInputStream(s.getBytes(StandardCharsets.US_ASCII));
 	}
 
 	private static FastBufferedInputStream str2fbis(final String x) {
 		return new FastBufferedInputStream(new ByteArrayInputStream(x.getBytes()));
+	}
+
+	private static Object extract(Object object, String fieldName) {
+		try {
+			Field f = object.getClass().getDeclaredField(fieldName);
+			f.setAccessible(true);
+			return f.get(object);
+		} catch (NoSuchFieldException | IllegalAccessException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	@Test
@@ -165,7 +184,11 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 		assertArrayEquals(new int[] {0}, a.nextAddresses().toIntArray());
 		assertEquals("a", a.transaction(Charset.defaultCharset()));
 
-		assertArrayEquals(new int[] {1}, b.nextAddresses(a.currentLine, a.transactionStart, a.transactionEnd).toIntArray());
+		byte[] currentLine = (byte[]) extract(a, "currentLine");
+		int transactionStart = (int) extract(a, "transactionStart");
+		int transactionEnd = (int) extract(a, "transactionEnd");
+
+		assertArrayEquals(new int[] {1}, b.nextAddresses(currentLine, transactionStart, transactionEnd).toIntArray());
 		assertEquals("a", b.transaction(Charset.defaultCharset()));
 	}
 
@@ -177,19 +200,25 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 		assertArrayEquals(new int[] {0}, a.nextAddresses().toIntArray());
 		assertEquals("a", a.transaction(Charset.defaultCharset()));
 
-		assertArrayEquals(new int[] {}, b.nextAddresses(a.currentLine, a.transactionStart, a.transactionEnd).toIntArray());
+		updateTransactionLine(a);
+
+		assertArrayEquals(new int[] {}, b.nextAddresses(currentLine, transactionStart, transactionEnd).toIntArray());
 		assertEquals("a", b.transaction(Charset.defaultCharset()));
 
 		assertArrayEquals(new int[] {0}, a.nextAddresses().toIntArray());
 		assertEquals("b", a.transaction(Charset.defaultCharset()));
 
-		assertArrayEquals(new int[] {}, b.nextAddresses(a.currentLine, a.transactionStart, a.transactionEnd).toIntArray());
+		updateTransactionLine(a);
+
+		assertArrayEquals(new int[] {}, b.nextAddresses(currentLine, transactionStart, transactionEnd).toIntArray());
 		assertEquals("b", b.transaction(Charset.defaultCharset()));
 
 		assertArrayEquals(new int[] {0}, a.nextAddresses().toIntArray());
 		assertEquals("c", a.transaction(Charset.defaultCharset()));
 
-		assertArrayEquals(new int[] {1}, b.nextAddresses(a.currentLine, a.transactionStart, a.transactionEnd).toIntArray());
+		updateTransactionLine(a);
+
+		assertArrayEquals(new int[] {1}, b.nextAddresses(currentLine, transactionStart, transactionEnd).toIntArray());
 		assertEquals("c", b.transaction(Charset.defaultCharset()));
 	}
 
@@ -201,7 +230,9 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 		assertArrayEquals(new int[] {1}, a.nextAddresses().toIntArray());
 		assertEquals("c", a.transaction(Charset.defaultCharset()));
 
-		assertArrayEquals(new int[] {0}, b.nextAddresses(a.currentLine, a.transactionStart, a.transactionEnd).toIntArray());
+		updateTransactionLine(a);
+
+		assertArrayEquals(new int[] {0}, b.nextAddresses(currentLine, transactionStart, transactionEnd).toIntArray());
 		assertEquals("c", b.transaction(Charset.defaultCharset()));
 	}
 
@@ -221,7 +252,9 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 		assertArrayEquals(new int[] {0, 1, 2}, a.nextAddresses().toIntArray());
 		assertEquals("a", a.transaction(Charset.defaultCharset()));
 
-		assertArrayEquals(new int[] {0, 3}, b.nextAddresses(a.currentLine, a.transactionStart, a.transactionEnd).toIntArray());
+		updateTransactionLine(a);
+
+		assertArrayEquals(new int[] {0, 3}, b.nextAddresses(currentLine, transactionStart, transactionEnd).toIntArray());
 		assertEquals("a", b.transaction(Charset.defaultCharset()));
 	}
 
@@ -233,7 +266,9 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 		assertArrayEquals(new int[] {0, 1, 2}, a.nextAddresses().toIntArray());
 		assertEquals("b", a.transaction(Charset.defaultCharset()));
 
-		assertArrayEquals(new int[] {0, 3}, b.nextAddresses(a.currentLine, a.transactionStart, a.transactionEnd).toIntArray());
+		updateTransactionLine(a);
+
+		assertArrayEquals(new int[] {0, 3}, b.nextAddresses(currentLine, transactionStart, transactionEnd).toIntArray());
 		assertEquals("b", b.transaction(Charset.defaultCharset()));
 	}
 }

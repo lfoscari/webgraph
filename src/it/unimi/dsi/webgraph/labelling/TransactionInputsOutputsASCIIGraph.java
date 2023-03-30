@@ -470,13 +470,12 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		private int offset;
 		private int line = 1;
 
-		// TODO: make private
-		public int tmpTransactionStart = -1, tmpTransactionEnd = -1;
-		public byte[] tmpTransaction = null;
+		private int tmpTransactionStart = -1, tmpTransactionEnd = -1;
+		private byte[] tmpTransaction = null;
 
-		public int transactionStart = -1, transactionEnd = -1;
-		public byte[] previousLine = new byte[1024];
-		public byte[] currentLine = new byte[1024];
+		private int transactionStart = -1, transactionEnd = -1;
+		private byte[] previousLine = new byte[1024];
+		private byte[] currentLine = new byte[1024];
 
 		public ReadTransactions(FastBufferedInputStream stream, final Object2LongFunction<byte[]> addressMap) throws IOException {
 			this(stream, addressMap, Integer.MAX_VALUE, null);
