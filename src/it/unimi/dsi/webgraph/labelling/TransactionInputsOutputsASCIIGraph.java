@@ -268,6 +268,9 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			System.exit(1);
 		}
 
+		final ProgressLogger pl = new ProgressLogger(LOGGER, jsapResult.getLong("logInterval"), TimeUnit.MILLISECONDS);
+		pl.displayFreeMemory = true;
+
 		String basename = jsapResult.getString("basename");
 
 		File inputs = new File(jsapResult.getString("inputs"));
@@ -346,6 +349,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			batchSize = jsapResult.getInt("batchSize");
 		} else if (transactionMap != null && transactionMap.size() != -1) {
 			batchSize = batchSize(transactionMap.size());
+			int maxBitsForTransactions = 64 - Long.numberOfLeadingZeros(transactionMap.size() - 1);
+			pl.logger.info("Using " + maxBitsForTransactions + " bits for each transaction identifier and " + batchSize + " elements per batch");
 		}
 
 		Statistics statistics = null;
@@ -354,9 +359,6 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			statDir.mkdir();
 			statistics = new Statistics(statDir.toPath(), transactionMap);
 		}
-
-		final ProgressLogger pl = new ProgressLogger(LOGGER, jsapResult.getLong("logInterval"), TimeUnit.MILLISECONDS);
-		pl.displayFreeMemory = true;
 
 		final TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputs.toPath()), Files.newInputStream(outputs.toPath()), addressMap, n, labelPrototype, labelMapping, labelMergeStrategy, batchSize, statistics, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, basename, basename + UNDERLYINGGRAPH_SUFFIX, windowSize, maxRefCount, minIntervalLength, zetaK, flags, pl);
