@@ -32,7 +32,6 @@ import it.unimi.dsi.io.InputBitStream;
 import it.unimi.dsi.io.OutputBitStream;
 import it.unimi.dsi.lang.MutableString;
 import it.unimi.dsi.logging.ProgressLogger;
-import it.unimi.dsi.sux4j.mph.GOV3Function;
 import it.unimi.dsi.webgraph.*;
 import it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.LabelMapping;
 import org.slf4j.Logger;
@@ -43,9 +42,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
-import java.util.zip.GZIPInputStream;
 
 import static it.unimi.dsi.fastutil.io.FastBufferedInputStream.*;
 import static it.unimi.dsi.webgraph.Transform.processTransposeBatch;
@@ -432,19 +429,19 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 				uniqueOutputs = uniqueAddressesAmount(outputAddresses);
 
 			MutableString mb = new MutableString();
-			mb.append(transactionMap != null ? transactionMap.getLong(transaction) : transaction);
-			mb.append(" ");
+			mb.append(transactionMap != null ? transactionMap.getLong(transaction) : new String(transaction));
+			mb.append("\t");
 			mb.append(uniqueInputs);
-			mb.append(" ");
+			mb.append("\t");
 			mb.append(uniqueOutputs);
 			mb.append("\n");
 			mb.writeSelfDelimUTF8(amountInputsOutputs);
 
 			mb.length(0);
-			mb.append(transactionMap != null ? transactionMap.getLong(transaction) : transaction);
-			mb.append(" ");
+			mb.append(transactionMap != null ? transactionMap.getLong(transaction) : new String(transaction));
+			mb.append("\t");
 			mb.append(inputAddresses.size() - uniqueInputs);
-			mb.append(" ");
+			mb.append("\t");
 			mb.append(outputAddresses.size() - uniqueOutputs);
 			mb.append("\n");
 			mb.writeSelfDelimUTF8(duplicateInputsOutputs);
