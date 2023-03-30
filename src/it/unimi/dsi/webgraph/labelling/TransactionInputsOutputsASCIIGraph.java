@@ -356,6 +356,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		}
 
 		final ProgressLogger pl = new ProgressLogger(LOGGER, jsapResult.getLong("logInterval"), TimeUnit.MILLISECONDS);
+		pl.displayFreeMemory = true;
 
 		final TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputs.toPath()), Files.newInputStream(outputs.toPath()), addressMap, n, labelPrototype, labelMapping, labelMergeStrategy, batchSize, statistics, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, basename, basename + UNDERLYINGGRAPH_SUFFIX, windowSize, maxRefCount, minIntervalLength, zetaK, flags, pl);
