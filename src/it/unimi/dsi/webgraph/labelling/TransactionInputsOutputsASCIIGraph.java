@@ -17,6 +17,7 @@
 
 package it.unimi.dsi.webgraph.labelling;
 
+import com.martiansoftware.jsap.*;
 import it.unimi.dsi.Util;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -44,9 +45,11 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.GZIPInputStream;
 
 import static it.unimi.dsi.fastutil.io.FastBufferedInputStream.*;
 import static it.unimi.dsi.webgraph.Transform.processTransposeBatch;
+import static it.unimi.dsi.webgraph.labelling.ArcLabelledImmutableGraph.UNDERLYINGGRAPH_SUFFIX;
 import static it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.getLong;
 
 // TODO: Description and methods spec
@@ -224,45 +227,141 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		return (int) ((1L << 31) - 1024) / (64 - Long.numberOfLeadingZeros(transactionAmount - 1));
 	}
 
-	public static void main(String[] args) throws IOException, ClassNotFoundException {
-		// TODO: handle parameters
+	public static void main(final String[] args) throws IllegalArgumentException, SecurityException, IOException, JSAPException, ClassNotFoundException {
+		final SimpleJSAP jsap = new SimpleJSAP(ScatteredLabelledArcsASCIIGraph.class.getName(),
+				"Converts the list of inputs and outputs from a cryptocurrency into a labelled BVGraph. Both inputs" +
+						"and outputs must be written as a list of transaction-address pairs separated by a single tab " +
+						"character and sorted by transaction, each node is an address and the arcs are labelled with the " +
+						"transactions. The list of addresses in order of appearance will be saved with extension " +
+						"\"IDS_EXTENSION\" unless a translation function has been specified. If a map from transactions " +
+						"to longs is provided it is possible to compute the maximum batch size, optimal label mapping " +
+						"strategy and optimal label prototype, storing the transactions longs with only as little bits " +
+						"as necessary. The inputs and outputs should be void of duplicates, but in case of duplicate arcs " +
+						"the label merge strategy will be invoked, the last occurring label is kept if no merge strategy " +
+						"is provided. It is possible to provide a directory to store the statistics computed during " +
+						"computation. The underlying representation of the labels will be saved as the given basename " +
+						"with the \"UNDERLYINGGRAPH_SUFFIX\" suffix.",
+				new Parameter[]{
+						new FlaggedOption("logInterval", JSAP.LONG_PARSER, Long.toString(ProgressLogger.DEFAULT_LOG_INTERVAL), JSAP.NOT_REQUIRED, 'l', "log-interval", "The minimum time interval between activity logs in milliseconds."),
+						new FlaggedOption("batchSize", JSAP.INTSIZE_PARSER, Integer.toString(DEFAULT_BATCH_SIZE), JSAP.NOT_REQUIRED, 's', "batch-size", "The maximum size of a batch, in arcs."),
+						new FlaggedOption("tempDir", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'T', "temp-dir", "A directory for all temporary batch files."),
+						new FlaggedOption("addressMap", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'a', "addressMap", "A serialised function from strings to longs that will be used to translate addresses to node numbers."),
+						new FlaggedOption("transactionMap", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 't', "transactionMap", "A serialised function from strings to longs that will be used to translate addresses to node numbers."),
+						new FlaggedOption("n", JSAP.INTSIZE_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'n', "n", "The number of nodes of the graph (only if you specified a function that does not return the size of the key set, or if you want to override that size)."),
+						new FlaggedOption("comp", JSAP.STRING_PARSER, null, JSAP.NOT_REQUIRED, 'c', "comp", "A compression flag (may be specified several times).").setAllowMultipleDeclarations(true),
+						new FlaggedOption("windowSize", JSAP.INTEGER_PARSER, String.valueOf(BVGraph.DEFAULT_WINDOW_SIZE), JSAP.NOT_REQUIRED, 'w', "window-size", "Reference window size (0 to disable)."),
+						new FlaggedOption("maxRefCount", JSAP.INTEGER_PARSER, String.valueOf(BVGraph.DEFAULT_MAX_REF_COUNT), JSAP.NOT_REQUIRED, 'm', "max-ref-count", "Maximum number of backward references (-1 for ∞)."),
+						new FlaggedOption("minIntervalLength", JSAP.INTEGER_PARSER, String.valueOf(BVGraph.DEFAULT_MIN_INTERVAL_LENGTH), JSAP.NOT_REQUIRED, 'i', "min-interval-length", "Minimum length of an interval (0 to disable)."),
+						new FlaggedOption("zetaK", JSAP.INTEGER_PARSER, String.valueOf(BVGraph.DEFAULT_ZETA_K), JSAP.NOT_REQUIRED, 'k', "zeta-k", "The k parameter for zeta-k codes."),
+						new FlaggedOption("labelPrototype", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'p', "label-prototype", "The prototype of the labels."),
+						new FlaggedOption("labelMapping", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'a', "label-mapping", "A serialised function from strings to the given label prototype that will be used to translate label strings to label object."),
+						new FlaggedOption("labelMergeStrategy", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'e', "label-merge-strategy", "A serialized LabelMergeStrategy object defining how to treat duplicate arcs with the same label."),
+						new FlaggedOption("statistics", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'S', "statistics", "A directory for the statistics gathered during computation"),
+						new UnflaggedOption("inputs", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, JSAP.NOT_GREEDY, "The inputs of the transactions in the blockchain, sorted by transaction."),
+						new UnflaggedOption("outputs", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, JSAP.NOT_GREEDY, "The outputs of the transactions in the blockchain, sorted by transaction."),
+						new UnflaggedOption("basename", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, JSAP.NOT_GREEDY, "The basename of the output graph"),
+				}
+		);
 
-		Logger logger = LoggerFactory.getLogger(TransactionInputsOutputsASCIIGraph.class);
-		ProgressLogger pl = new ProgressLogger(logger, 1, TimeUnit.MINUTES);
-		pl.displayFreeMemory = true;
+		final JSAPResult jsapResult = jsap.parse(args);
+		if (jsap.messagePrinted()) {
+			System.exit(1);
+		}
 
-		Scanner sc = new Scanner(System.in);
-		System.out.print("cryptocurrency: ");
-		Path resources =  new File(sc.nextLine()).toPath();
-		Path artifacts = resources.resolve("artifacts");
-		Path inputsFile = artifacts.resolve("inputs.tsv");
-		Path outputsFile = artifacts.resolve("outputs.tsv");
-		Path graphDir = resources.resolve("graph-labelled");
-		Path statsDir = resources.resolve("stats");
+		String basename = jsapResult.getString("basename");
 
-		graphDir.toFile().mkdir();
-		File tempDir = Files.createTempDirectory(resources, "transactiongraph").toFile();
-		tempDir.deleteOnExit();
+		File inputs = new File(jsapResult.getString("inputs"));
+		if (!inputs.exists()) throw new JSAPException(inputs + " file does not exist");
 
-		GOV3Function<byte[]> transactionsMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("transaction.map").toFile());
-		GOV3Function<byte[]> addressMap = (GOV3Function<byte[]>) BinIO.loadObject(artifacts.resolve("address.map").toFile());
-		int numNodes = (int) addressMap.size64();
+		File outputs = new File(jsapResult.getString("outputs"));
+		if (!outputs.exists()) throw new JSAPException(outputs + " file does not exist");
 
-		Statistics statistics = null; // new Statistics(statsDir, transactionsMap);
+		int flags = 0;
+		for(final String compressionFlag: jsapResult.getStringArray("comp"))
+			try {
+				flags |= BVGraph.class.getField(compressionFlag).getInt(BVGraph.class);
+			} catch (final Exception notFound) {
+				throw new JSAPException("Compression method " + compressionFlag + " unknown.");
+			}
 
-		int maxBitsForTransactions = 64 - Long.numberOfLeadingZeros(transactionsMap.size64() - 1);
-		int batchSize = batchSize(transactionsMap.size64());
-		pl.logger.info("Using " + (64 - Long.numberOfLeadingZeros(transactionsMap.size64() - 1)) + " bits for each transaction identifier and " + batchSize + " elements per batch");
+		final int windowSize = jsapResult.getInt("windowSize");
+		final int zetaK = jsapResult.getInt("zetaK");
+		int maxRefCount = jsapResult.getInt("maxRefCount");
+		if (maxRefCount == -1) maxRefCount = Integer.MAX_VALUE;
+		final int minIntervalLength = jsapResult.getInt("minIntervalLength");
 
-		Label labelPrototype = new FixedWidthLongLabel("transaction-id", maxBitsForTransactions);
-		LabelMapping labelMapping = (prototype, transaction) -> ((FixedWidthLongLabel) prototype).value = transactionsMap.getLong(transaction);
+		Object2LongFunction<byte[]> addressMap = null;
+		int n = -1;
 
-		TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputsFile), Files.newInputStream(outputsFile), addressMap, numNodes, labelPrototype, labelMapping, null, batchSize, statistics, tempDir, pl);
-		EFGraph.store(graph, graphDir.resolve("bitcoin-underlying").toString(), pl);
-		BitStreamArcLabelledImmutableGraph.store(graph.arcLabelledBatchGraph, graphDir.resolve("bitcoin").toString(), graphDir.resolve("bitcoin-underlying").toString(), pl);
+		if (jsapResult.userSpecified("addressMap")) {
+			addressMap = (Object2LongFunction<byte[]>) BinIO.loadObject(jsapResult.getString("addressMap"));
+			if (addressMap.size() == -1) {
+				if (!jsapResult.userSpecified("n")) {
+					throw new IllegalArgumentException("You must specify a graph size if you specify a translation function that does not return the size of the key set.");
+				}
+				n = jsapResult.getInt("n");
+			} else {
+				n = addressMap.size();
+			}
+		}
+
+		Object2LongFunction<byte[]> transactionMap;
+		if (jsapResult.userSpecified("transactionMap")) {
+			transactionMap = (Object2LongFunction<byte[]>) BinIO.loadObject(jsapResult.getString("transactionMap"));
+		} else {
+			transactionMap = null;
+		}
+
+		if (jsapResult.userSpecified("labelPrototype") != jsapResult.userSpecified("labelMapping")) {
+			throw new IllegalArgumentException("You must specify either both a label prototype and a label mapping or none.");
+		}
+
+		Label labelPrototype = DEFAULT_LABEL_PROTOTYPE;
+		if (jsapResult.userSpecified("labelPrototype")) {
+			labelPrototype = (Label) BinIO.loadObject(jsapResult.getString("labelPrototype"));
+		} else if (transactionMap != null && transactionMap.size() != -1) {
+			int maxBitsForTransactions = 64 - Long.numberOfLeadingZeros(transactionMap.size() - 1);
+			labelPrototype = new FixedWidthLongLabel("transaction-id", maxBitsForTransactions);
+		}
+
+		LabelMapping labelMapping = DEFAULT_LABEL_MAPPING;
+		if (jsapResult.userSpecified("labelMapping")) {
+			labelMapping = (LabelMapping) BinIO.loadObject(jsapResult.getString("labelMapping"));
+		} else if (transactionMap != null) {
+			labelMapping = (prototype, transaction) -> ((FixedWidthLongLabel) prototype).value = transactionMap.getLong(transaction);
+		}
+
+		LabelMergeStrategy labelMergeStrategy = null;
+		if (jsapResult.userSpecified("labelMergeStrategy")) {
+			labelMergeStrategy = (LabelMergeStrategy) BinIO.loadObject(jsapResult.getString("labelMergeStrategy"));
+		}
+
+		File tempDir = null;
+		if (jsapResult.userSpecified("tempDir")) {
+			tempDir = new File(jsapResult.getString("tempDir"));
+		}
+
+		int batchSize = -1;
+		if (jsapResult.userSpecified("batchSize")) {
+			batchSize = jsapResult.getInt("batchSize");
+		} else if (transactionMap != null && transactionMap.size() != -1) {
+			batchSize = batchSize(transactionMap.size());
+		}
+
+		Statistics statistics = null;
+		if (jsapResult.userSpecified("statistics")) {
+			File statDir = new File(jsapResult.getString("statistics"));
+			statDir.mkdir();
+			statistics = new Statistics(statDir.toPath(), transactionMap);
+		}
+
+		final ProgressLogger pl = new ProgressLogger(LOGGER, jsapResult.getLong("logInterval"), TimeUnit.MILLISECONDS);
+
+		final TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputs.toPath()), Files.newInputStream(outputs.toPath()), addressMap, n, labelPrototype, labelMapping, labelMergeStrategy, batchSize, statistics, tempDir, pl);
+		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, basename, basename + UNDERLYINGGRAPH_SUFFIX, windowSize, maxRefCount, minIntervalLength, zetaK, flags, pl);
 
 		if (addressMap == null) {
-			BinIO.storeLongs(graph.addresses, graphDir.resolve("bitcoin") + IDS_EXTENSION);
+			BinIO.storeLongs(graph.addresses, basename + IDS_EXTENSION);
 		}
 	}
 
@@ -314,31 +413,30 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	}
 
 	private static class Statistics implements Closeable {
-		private final GOV3Function<byte[]> transactionMap;
+		private final Object2LongFunction<byte[]> transactionMap;
 
 		private final FastBufferedOutputStream amountInputsOutputs;
 		private final FastBufferedOutputStream duplicateInputsOutputs;
 
-		public Statistics(Path statisticsDirectory, GOV3Function<byte[]> map) throws IOException {
-			transactionMap = map;
+		public Statistics(Path statisticsDirectory, Object2LongFunction<byte[]> transactionMap) throws IOException {
+			this.transactionMap = transactionMap;
 			amountInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("amounts")));
 			duplicateInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("duplicates")));
 		}
 
 		public void update(byte[] transaction, IntArrayList inputAddresses, IntArrayList outputAddresses) throws IOException {
 			long uniqueInputs = uniqueAddressesAmount(inputAddresses),
-				uniqueOutputs = uniqueAddressesAmount(outputAddresses),
-				transactionId = transactionMap.getLong(transaction);
+				uniqueOutputs = uniqueAddressesAmount(outputAddresses);
 
 			MutableString mb = new MutableString();
-			mb.append(transactionId);
+			mb.append(transactionMap != null ? transactionMap.getLong(transaction) : transaction);
 			mb.append(uniqueInputs);
 			mb.append(uniqueOutputs);
 			mb.append("\n");
 			mb.writeSelfDelimUTF8(amountInputsOutputs);
 
 			mb.length(0);
-			mb.append(transactionId);
+			mb.append(transactionMap != null ? transactionMap.getLong(transaction) : transaction);
 			mb.append(inputAddresses.size() - uniqueInputs);
 			mb.append(outputAddresses.size() - uniqueOutputs);
 			mb.append("\n");
