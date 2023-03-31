@@ -15,13 +15,17 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later OR Apache-2.0
  */
 
-package it.unimi.dsi.webgraph;
+package it.unimi.dsi.webgraph.labelling;
 
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
 import it.unimi.dsi.fastutil.io.FastByteArrayInputStream;
 import it.unimi.dsi.fastutil.objects.*;
+import it.unimi.dsi.webgraph.ArrayListMutableGraph;
+import it.unimi.dsi.webgraph.ImmutableGraph;
+import it.unimi.dsi.webgraph.WebGraphTestCase;
 import it.unimi.dsi.webgraph.labelling.*;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -74,7 +78,7 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 		TransactionInputsOutputsASCIIGraph g;
 
 		g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\na 1\na 2"), str2fbais("a 3"));
-		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
+		Assert.assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
 		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses);
 
 		g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0"), str2fbais("a 1"));
@@ -269,6 +273,28 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 		updateTransactionLine(a);
 
 		assertArrayEquals(new int[] {0, 3}, b.nextAddresses(currentLine, transactionStart, transactionEnd).toIntArray());
+		assertEquals("b", b.transaction(Charset.defaultCharset()));
+	}
+
+	@Test
+	public void readTransactionInconsistency() throws IOException {
+		TransactionInputsOutputsASCIIGraph.ReadTransactions a = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\nb 1"), ADDRESS_MAP);
+		TransactionInputsOutputsASCIIGraph.ReadTransactions b = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("b 0"), ADDRESS_MAP);
+
+		assertArrayEquals(new int[] {0}, a.nextAddresses().toIntArray());
+		assertEquals("a", a.transaction(Charset.defaultCharset()));
+
+		updateTransactionLine(a);
+
+		assertArrayEquals(new int[] {}, b.nextAddresses(currentLine, transactionStart, transactionEnd).toIntArray());
+		assertEquals("a", b.transaction(Charset.defaultCharset()));
+
+		assertArrayEquals(new int[] {1}, a.nextAddresses().toIntArray());
+		assertEquals("b", a.transaction(Charset.defaultCharset()));
+
+		updateTransactionLine(a);
+
+		assertArrayEquals(new int[] {0}, b.nextAddresses(currentLine, transactionStart, transactionEnd).toIntArray());
 		assertEquals("b", b.transaction(Charset.defaultCharset()));
 	}
 }
