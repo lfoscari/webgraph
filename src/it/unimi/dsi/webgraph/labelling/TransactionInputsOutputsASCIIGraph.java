@@ -97,19 +97,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		this(inputsIs, outputsIs, addressMap, numNodes, labelPrototype, labelMapping, labelMergeStrategy, DEFAULT_BATCH_SIZE, null, null, null);
 	}
 
-	public TransactionInputsOutputsASCIIGraph(
-			final InputStream inputsIs,
-			final InputStream outputsIs,
-			final Object2LongFunction<byte[]> addressMap,
-			int numNodes,
-			final Label labelPrototype,
-			final LabelMapping labelMapping,
-			final LabelMergeStrategy labelMergeStrategy,
-			final int batchSize,
-			final Statistics statistics,
-			final File tempDir,
-			final ProgressLogger pl) throws IOException {
-
+	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2LongFunction<byte[]> addressMap, int numNodes, final Label labelPrototype, final LabelMapping labelMapping, final LabelMergeStrategy labelMergeStrategy, final int batchSize, final Statistics statistics, final File tempDir, final ProgressLogger pl) throws IOException {
 		if (addressMap != null && numNodes < 0) {
 			throw new IllegalArgumentException("Negative number of nodes");
 		}
@@ -142,7 +130,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 			if (inputAddresses.size() == 0) {
 				if (DEBUG) System.out.println("no more transactions inputs, terminating...");
-				break; // outputs EOF
+				break;
 			}
 
 			if (DEBUG) System.out.println("output");
@@ -477,6 +465,10 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		private byte[] previousLine = new byte[1024];
 		private byte[] currentLine = new byte[1024];
 
+		public ReadTransactions(FastBufferedInputStream stream) throws IOException {
+			this(stream, null, Integer.MAX_VALUE, new ScatteredArcsASCIIGraph.Id2NodeMap());
+		}
+
 		public ReadTransactions(FastBufferedInputStream stream, final Object2LongFunction<byte[]> addressMap) throws IOException {
 			this(stream, addressMap, Integer.MAX_VALUE, null);
 		}
@@ -633,9 +625,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 		public byte[] transactionBytes() {
 			if (transactionStart == -1) throw new IllegalStateException("You must first read addresses");
-			return tmpTransaction == null ?
-					Arrays.copyOfRange(currentLine, transactionStart, transactionEnd) :
-					Arrays.copyOfRange(tmpTransaction, tmpTransactionStart, tmpTransactionEnd);
+			return Arrays.copyOfRange(currentLine, transactionStart, transactionEnd);
 		}
 
 		public String transaction(Charset charset) {
