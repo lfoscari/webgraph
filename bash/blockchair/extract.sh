@@ -3,7 +3,6 @@
 set -e
 set -o pipefail
 
-# TODO: rewrite
 if [[ "$3" == "" ]]; then
 	echo "$(basename "$0") DIR NTHREADS {INPUT|OUTPUT} [ADDRESS|TRANSACTION]" 1>&2
 	echo "Reads files in DIR and processes them using NTHREADS parallel sorts." 1>&2
@@ -36,7 +35,6 @@ FILES=$(mktemp)
 find $DIR -type f >$FILES
 
 # Check that all files end with a newline
-
 while read FILE; do
 	if ! file_ends_with_newline $FILE; then
 		echo "File $FILE does not end with a newline" 1>&2
@@ -47,7 +45,6 @@ done <$FILES
 NFILES=$(cat $FILES | wc -l)
 
 # To avoid empty splits, there must be at least as many threads as files
-
 if ((NFILES < NTHREADS)); then
 	NTHREADS=$NFILES
 	echo "Not enough files: number of threads set to $NFILES" 1>&2
