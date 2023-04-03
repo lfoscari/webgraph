@@ -434,6 +434,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 				mb.append("\t");
 				mb.append(datum);
 			}
+			mb.append("\n");
 			mb.writeSelfDelimUTF8(dest);
 		}
 
