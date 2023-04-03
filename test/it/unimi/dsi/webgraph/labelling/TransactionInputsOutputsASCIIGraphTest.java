@@ -17,6 +17,9 @@
 
 package it.unimi.dsi.webgraph.labelling;
 
+import ch.qos.logback.core.util.ReflectionUtil;
+import com.google.common.reflect.Reflection;
+import com.google.j2objc.annotations.ReflectionSupport;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
 import it.unimi.dsi.fastutil.io.FastByteArrayInputStream;
@@ -55,14 +58,6 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 		transactionEnd = (int) extract(a, "transactionEnd");
 	}
 
-	private static FastByteArrayInputStream str2fbais(String s) {
-		return new FastByteArrayInputStream(s.getBytes(StandardCharsets.US_ASCII));
-	}
-
-	private static FastBufferedInputStream str2fbis(final String x) {
-		return new FastBufferedInputStream(new ByteArrayInputStream(x.getBytes()));
-	}
-
 	private static Object extract(Object object, String fieldName) {
 		try {
 			Field f = object.getClass().getDeclaredField(fieldName);
@@ -71,6 +66,14 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 		} catch (NoSuchFieldException | IllegalAccessException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	private static FastByteArrayInputStream str2fbais(String s) {
+		return new FastByteArrayInputStream(s.getBytes(StandardCharsets.US_ASCII));
+	}
+
+	private static FastBufferedInputStream str2fbis(final String x) {
+		return new FastBufferedInputStream(new ByteArrayInputStream(x.getBytes()));
 	}
 
 	@Test
@@ -168,7 +171,7 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionOneLineTest() throws IOException {
-		TransactionInputsOutputsASCIIGraph.ReadTransactions in = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\nb 1\nc 2"), ADDRESS_MAP, Integer.MAX_VALUE, null);
+		TransactionInputsOutputsASCIIGraph.ReadTransactions in = new TransactionInputsOutputsASCIIGraph.ReadTransactions(str2fbis("a 0\nb 1\nc 2"), ADDRESS_MAP, 0, Integer.MAX_VALUE, null);
 
 		assertArrayEquals(new int[] {0}, in.nextAddresses().toIntArray());
 		assertEquals("a", in.transaction(Charset.defaultCharset()));

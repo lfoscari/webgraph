@@ -104,8 +104,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 		ScatteredArcsASCIIGraph.Id2NodeMap map = new ScatteredArcsASCIIGraph.Id2NodeMap();
 
-		final ReadTransactions inputs = new ReadTransactions(new FastBufferedInputStream(inputsIs), addressMap, numNodes, map);
-		final ReadTransactions outputs = new ReadTransactions(new FastBufferedInputStream(outputsIs), addressMap, numNodes, map);
+		final ReadTransactions inputs = new ReadTransactions(new FastBufferedInputStream(inputsIs), addressMap, 0, numNodes, map);
+		final ReadTransactions outputs = new ReadTransactions(new FastBufferedInputStream(outputsIs), addressMap, 0, numNodes, map);
 
 		int j = 0;
 		long pairs = 0;
@@ -450,7 +450,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	public static class ReadTransactions {
 		private final FastBufferedInputStream stream;
 		private final Object2LongFunction<byte[]> addressMap;
-		private final int numNodes;
+		private final int from;
+		private final int to;
 
 		private final IntArrayList addresses = new IntArrayList(512);
 		private final ScatteredArcsASCIIGraph.Id2NodeMap map;
@@ -466,17 +467,18 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		private byte[] currentLine = new byte[1024];
 
 		public ReadTransactions(FastBufferedInputStream stream) throws IOException {
-			this(stream, null, Integer.MAX_VALUE, new ScatteredArcsASCIIGraph.Id2NodeMap());
+			this(stream, null, 0, Integer.MAX_VALUE, new ScatteredArcsASCIIGraph.Id2NodeMap());
 		}
 
 		public ReadTransactions(FastBufferedInputStream stream, final Object2LongFunction<byte[]> addressMap) throws IOException {
-			this(stream, addressMap, Integer.MAX_VALUE, null);
+			this(stream, addressMap, 0, Integer.MAX_VALUE, null);
 		}
 
-		public ReadTransactions(FastBufferedInputStream stream, final Object2LongFunction<byte[]> addressMap, final int numNodes, final ScatteredArcsASCIIGraph.Id2NodeMap map) throws IOException {
+		public ReadTransactions(FastBufferedInputStream stream, final Object2LongFunction<byte[]> addressMap, final int from, final int to, final ScatteredArcsASCIIGraph.Id2NodeMap map) throws IOException {
 			this.stream = stream;
 			this.addressMap = addressMap;
-			this.numNodes = numNodes;
+			this.from = from;
+			this.to = to;
 			this.map = map;
 
 			do {
@@ -608,7 +610,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 				final byte[] address = Arrays.copyOfRange(array, start, offset);
 				addressId = (int) addressMap.getLong(address);
 
-				if (addressId < 0 || addressId >= numNodes) {
+				if (addressId < from || addressId >= to) {
 					throw new IllegalArgumentException("Address node number out of range for node " + addressId + ": " + new String(array, start, offset - start));
 				}
 			}
@@ -625,7 +627,9 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 		public byte[] transactionBytes() {
 			if (transactionStart == -1) throw new IllegalStateException("You must first read addresses");
-			return Arrays.copyOfRange(currentLine, transactionStart, transactionEnd);
+			return tmpTransaction == null ?
+					Arrays.copyOfRange(currentLine, transactionStart, transactionEnd) :
+					Arrays.copyOfRange(tmpTransaction, tmpTransactionStart, tmpTransactionEnd);
 		}
 
 		public String transaction(Charset charset) {
