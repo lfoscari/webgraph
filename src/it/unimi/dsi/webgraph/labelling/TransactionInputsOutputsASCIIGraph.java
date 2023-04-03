@@ -71,7 +71,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	/**
 	 * Toggle the debug mode.
 	 */
-	private final static boolean DEBUG = true;
+	private final static boolean DEBUG = false;
 	/**
 	 * The extension of the identifier file (a binary list of longs).
 	 */
