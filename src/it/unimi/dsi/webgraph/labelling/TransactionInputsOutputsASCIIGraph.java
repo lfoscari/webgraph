@@ -48,8 +48,7 @@ import static it.unimi.dsi.fastutil.io.FastBufferedInputStream.*;
 import static it.unimi.dsi.webgraph.Transform.processTransposeBatch;
 import static it.unimi.dsi.webgraph.labelling.ArcLabelledImmutableGraph.UNDERLYINGGRAPH_SUFFIX;
 import static it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.getLong;
-import static java.nio.file.StandardOpenOption.CREATE_NEW;
-import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
+import static java.nio.file.StandardOpenOption.*;
 
 // TODO: Description and methods spec
 
