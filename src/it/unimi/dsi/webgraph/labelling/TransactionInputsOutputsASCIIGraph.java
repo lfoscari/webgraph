@@ -48,6 +48,7 @@ import static it.unimi.dsi.fastutil.io.FastBufferedInputStream.*;
 import static it.unimi.dsi.webgraph.Transform.processTransposeBatch;
 import static it.unimi.dsi.webgraph.labelling.ArcLabelledImmutableGraph.UNDERLYINGGRAPH_SUFFIX;
 import static it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.getLong;
+import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 
 // TODO: Description and methods spec
 
@@ -411,9 +412,9 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 		public Statistics(Path statisticsDirectory, Object2LongFunction<byte[]> transactionMap) throws IOException {
 			this.transactionMap = transactionMap;
-			totalInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("total.stat")));
-			uniqueInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("unique.stat")));
-			duplicateInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("duplicates.stat")));
+			totalInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("total.stat"), TRUNCATE_EXISTING));
+			uniqueInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("unique.stat"), TRUNCATE_EXISTING));
+			duplicateInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("duplicates.stat"), TRUNCATE_EXISTING));
 		}
 
 		public void update(byte[] transaction, IntArrayList inputAddresses, IntArrayList outputAddresses) throws IOException {
