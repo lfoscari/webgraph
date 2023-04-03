@@ -71,7 +71,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	/**
 	 * Toggle the debug mode.
 	 */
-	private final static boolean DEBUG = false;
+	private final static boolean DEBUG = true;
 	/**
 	 * The extension of the identifier file (a binary list of longs).
 	 */
@@ -403,36 +403,38 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	private static class Statistics implements Closeable {
 		private final Object2LongFunction<byte[]> transactionMap;
 
-		private final FastBufferedOutputStream amountInputsOutputs;
+		private final FastBufferedOutputStream totalInputsOutputs;
+		private final FastBufferedOutputStream uniqueInputsOutputs;
 		private final FastBufferedOutputStream duplicateInputsOutputs;
+
+		private final MutableString mb = new MutableString();
 
 		public Statistics(Path statisticsDirectory, Object2LongFunction<byte[]> transactionMap) throws IOException {
 			this.transactionMap = transactionMap;
-			amountInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("amounts")));
-			duplicateInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("duplicates")));
+			totalInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("total.stat")));
+			uniqueInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("unique.stat")));
+			duplicateInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("duplicates.stat")));
 		}
 
 		public void update(byte[] transaction, IntArrayList inputAddresses, IntArrayList outputAddresses) throws IOException {
-			long uniqueInputs = uniqueAddressesAmount(inputAddresses),
-				uniqueOutputs = uniqueAddressesAmount(outputAddresses);
+			long inputsAmount = inputAddresses.size(),
+					outputsAmount = outputAddresses.size(),
+					uniqueInputs = uniqueAddressesAmount(inputAddresses),
+					uniqueOutputs = uniqueAddressesAmount(outputAddresses);
 
-			MutableString mb = new MutableString();
-			mb.append(transactionMap != null ? transactionMap.getLong(transaction) : new String(transaction));
-			mb.append("\t");
-			mb.append(uniqueInputs);
-			mb.append("\t");
-			mb.append(uniqueOutputs);
-			mb.append("\n");
-			mb.writeSelfDelimUTF8(amountInputsOutputs);
+			log(totalInputsOutputs, transaction, inputsAmount, outputsAmount);
+			log(uniqueInputsOutputs, transaction, uniqueInputs, uniqueOutputs);
+			log(duplicateInputsOutputs, transaction, inputsAmount - uniqueInputs, outputsAmount - uniqueOutputs);
+		}
 
+		private void log(FastBufferedOutputStream dest, byte[] transaction, long ...data) throws IOException {
 			mb.length(0);
 			mb.append(transactionMap != null ? transactionMap.getLong(transaction) : new String(transaction));
-			mb.append("\t");
-			mb.append(inputAddresses.size() - uniqueInputs);
-			mb.append("\t");
-			mb.append(outputAddresses.size() - uniqueOutputs);
-			mb.append("\n");
-			mb.writeSelfDelimUTF8(duplicateInputsOutputs);
+			for (long datum: data) {
+				mb.append("\t");
+				mb.append(datum);
+			}
+			mb.writeSelfDelimUTF8(dest);
 		}
 
 		private static long uniqueAddressesAmount(final IntArrayList addresses) {
@@ -442,7 +444,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 		@Override
 		public void close() throws IOException {
-			this.amountInputsOutputs.close();
+			this.totalInputsOutputs.close();
+			this.uniqueInputsOutputs.close();
 			this.duplicateInputsOutputs.close();
 		}
 	}
@@ -578,7 +581,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 					Arrays.compare(currentLine, start, offset, transaction, from, to);
 
 				if (cmp < 0) {
-					if (DEBUG) System.out.print("skipped ");
+					if (DEBUG) System.out.println("skipped ");
 					continue;
 				} else if (cmp > 0) {
 					break;
@@ -616,7 +619,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			}
 
 			addresses.add(addressId);
-			if (DEBUG) System.out.println("a: " + new String(array, start, offset - start) + " [" + addressId + "]");
+			if (DEBUG) System.out.println("a: " + new String(array, start, offset - start) + " (id: " + addressId + ")");
 		}
 
 		private int skipWhitespace(final byte[] array) {
