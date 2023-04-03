@@ -48,6 +48,7 @@ import static it.unimi.dsi.fastutil.io.FastBufferedInputStream.*;
 import static it.unimi.dsi.webgraph.Transform.processTransposeBatch;
 import static it.unimi.dsi.webgraph.labelling.ArcLabelledImmutableGraph.UNDERLYINGGRAPH_SUFFIX;
 import static it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.getLong;
+import static java.nio.file.StandardOpenOption.CREATE_NEW;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 
 // TODO: Description and methods spec
@@ -408,13 +409,13 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		private final FastBufferedOutputStream uniqueInputsOutputs;
 		private final FastBufferedOutputStream duplicateInputsOutputs;
 
-		private final MutableString mb = new MutableString();
+		private final MutableString ms = new MutableString();
 
 		public Statistics(Path statisticsDirectory, Object2LongFunction<byte[]> transactionMap) throws IOException {
 			this.transactionMap = transactionMap;
-			totalInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("total.stat"), TRUNCATE_EXISTING));
-			uniqueInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("unique.stat"), TRUNCATE_EXISTING));
-			duplicateInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("duplicates.stat"), TRUNCATE_EXISTING));
+			totalInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("total.stat"), CREATE, TRUNCATE_EXISTING));
+			uniqueInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("unique.stat"), CREATE, TRUNCATE_EXISTING));
+			duplicateInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("duplicates.stat"), CREATE, TRUNCATE_EXISTING));
 		}
 
 		public void update(byte[] transaction, IntArrayList inputAddresses, IntArrayList outputAddresses) throws IOException {
@@ -429,14 +430,14 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		}
 
 		private void log(FastBufferedOutputStream dest, byte[] transaction, long ...data) throws IOException {
-			mb.length(0);
-			mb.append(transactionMap != null ? transactionMap.getLong(transaction) : new String(transaction));
+			ms.length(0);
+			ms.append(transactionMap != null ? transactionMap.getLong(transaction) : new String(transaction));
 			for (long datum: data) {
-				mb.append("\t");
-				mb.append(datum);
+				ms.append("\t");
+				ms.append(datum);
 			}
-			mb.append("\n");
-			mb.writeSelfDelimUTF8(dest);
+			ms.append("\n");
+			ms.writeSelfDelimUTF8(dest);
 		}
 
 		private static long uniqueAddressesAmount(final IntArrayList addresses) {
