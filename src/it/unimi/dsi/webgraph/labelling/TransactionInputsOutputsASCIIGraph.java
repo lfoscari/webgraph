@@ -343,7 +343,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		if (jsapResult.userSpecified("statistics")) {
 			File statDir = new File(jsapResult.getString("statistics"));
 			statDir.mkdir();
-			statistics = new Statistics(statDir.toPath(), transactionMap);
+			statistics = new Statistics(statDir.toPath());
 		}
 
 		final TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputs.toPath()), Files.newInputStream(outputs.toPath()), addressMap, n, labelPrototype, labelMapping, labelMergeStrategy, batchSize, statistics, tempDir, pl);
@@ -408,7 +408,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 		private final MutableString ms = new MutableString();
 
-		public Statistics(Path statisticsDirectory, Object2LongFunction<byte[]> transactionMap) throws IOException {
+		public Statistics(Path statisticsDirectory) throws IOException {
 			totalInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("total.stat"), CREATE, TRUNCATE_EXISTING));
 			uniqueInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("unique.stat"), CREATE, TRUNCATE_EXISTING));
 			duplicateInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("duplicates.stat"), CREATE, TRUNCATE_EXISTING));
