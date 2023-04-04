@@ -826,7 +826,7 @@ public class ScatteredLabelledArcsASCIIGraph extends ImmutableSequentialGraph {
 	}
 
 	public interface LabelMapping {
-		void apply(Label prototype, byte[] representation);
+		Object apply(Label prototype, byte[] representation);
 	}
 
 	@SuppressWarnings("unchecked")

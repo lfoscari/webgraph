@@ -148,10 +148,10 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 			// Set the label as the transaction
 			byte[] transaction = inputs.transactionBytes();
-			labelMapping.apply(prototype, transaction);
+			long transactionId = (long) labelMapping.apply(prototype, transaction);
 
 			if (statistics != null) {
-				statistics.update(transaction, inputAddresses, outputAddresses);
+				statistics.update(transactionId, inputAddresses, outputAddresses);
 			}
 
 			for (int s : inputAddresses) {
@@ -402,8 +402,6 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	}
 
 	private static class Statistics implements Closeable {
-		private final Object2LongFunction<byte[]> transactionMap;
-
 		private final FastBufferedOutputStream totalInputsOutputs;
 		private final FastBufferedOutputStream uniqueInputsOutputs;
 		private final FastBufferedOutputStream duplicateInputsOutputs;
@@ -411,26 +409,25 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		private final MutableString ms = new MutableString();
 
 		public Statistics(Path statisticsDirectory, Object2LongFunction<byte[]> transactionMap) throws IOException {
-			this.transactionMap = transactionMap;
 			totalInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("total.stat"), CREATE, TRUNCATE_EXISTING));
 			uniqueInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("unique.stat"), CREATE, TRUNCATE_EXISTING));
 			duplicateInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("duplicates.stat"), CREATE, TRUNCATE_EXISTING));
 		}
 
-		public void update(byte[] transaction, IntArrayList inputAddresses, IntArrayList outputAddresses) throws IOException {
+		public void update(long transactionId, IntArrayList inputAddresses, IntArrayList outputAddresses) throws IOException {
 			long inputsAmount = inputAddresses.size(),
 					outputsAmount = outputAddresses.size(),
 					uniqueInputs = uniqueAddressesAmount(inputAddresses),
 					uniqueOutputs = uniqueAddressesAmount(outputAddresses);
 
-			log(totalInputsOutputs, transaction, inputsAmount, outputsAmount);
-			log(uniqueInputsOutputs, transaction, uniqueInputs, uniqueOutputs);
-			log(duplicateInputsOutputs, transaction, inputsAmount - uniqueInputs, outputsAmount - uniqueOutputs);
+			log(totalInputsOutputs, transactionId, inputsAmount, outputsAmount);
+			log(uniqueInputsOutputs, transactionId, uniqueInputs, uniqueOutputs);
+			log(duplicateInputsOutputs, transactionId, inputsAmount - uniqueInputs, outputsAmount - uniqueOutputs);
 		}
 
-		private void log(FastBufferedOutputStream dest, byte[] transaction, long ...data) throws IOException {
+		private void log(FastBufferedOutputStream dest, long transactionId, long ...data) throws IOException {
 			ms.length(0);
-			ms.append(transactionMap != null ? transactionMap.getLong(transaction) : new String(transaction));
+			ms.append(transactionId);
 			for (long datum: data) {
 				ms.append("\t");
 				ms.append(datum);
