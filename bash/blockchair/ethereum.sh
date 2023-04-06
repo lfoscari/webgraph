@@ -31,12 +31,12 @@ cat $DIR/* | cut -f 3,6,7,8 | awk \ '
 		print $4 > "'$DEST'/addresses.tsv"
 	}
 	$2 ~ /call/ {
-		print $1 $3 $4 > "'$DEST'/call.tsv";
+		print $3 "\t" $4 "\t" $1 > "'$DEST'/call.tsv";
 		print $3 "\n" $4 > "'$DEST'/addresses.tsv";
 		print $1 > "'$DEST'/transactions.tsv"
 	}
 	$2 ~ /call_tree/ {
-		print $1 $3 $4 > "'$DEST'/call_tree.tsv";
+		print $3 "\t" $4 "\t" $1 > "'$DEST'/call_tree.tsv";
 	 	print $3 "\n" $4 > "'$DEST'/addresses.tsv";
 	 	print $1 > "'$DEST'/transactions.tsv"
 	}'
