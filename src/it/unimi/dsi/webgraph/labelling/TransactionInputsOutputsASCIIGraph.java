@@ -60,11 +60,11 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	/**
 	 * The default label prototype.
 	 */
-	public static final Label DEFAULT_LABEL_PROTOTYPE = new GammaCodedIntLabel("transaction-id");
+	public static final Label DEFAULT_LABEL_PROTOTYPE = new LongArrayListLabel("transaction-id");
 	/**
 	 * The default label mapping function.
 	 */
-	public static final LabelMapping DEFAULT_LABEL_MAPPING = ScatteredLabelledArcsASCIIGraph.DEFAULT_LABEL_MAPPING;
+	public static final LabelMapping DEFAULT_LABEL_MAPPING = (prototype, transaction) -> ((LongArrayListLabel) prototype).init(Arrays.hashCode(transaction));
 	/**
 	 * The default logger.
 	 */
@@ -308,8 +308,6 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		Label labelPrototype = DEFAULT_LABEL_PROTOTYPE;
 		if (jsapResult.userSpecified("labelPrototype")) {
 			labelPrototype = (Label) BinIO.loadObject(jsapResult.getString("labelPrototype"));
-		} else if (transactionMap != null) {
-			labelPrototype = new LongArrayListLabel("transaction-id");
 		}
 
 		LabelMapping labelMapping = DEFAULT_LABEL_MAPPING;
