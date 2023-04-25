@@ -117,7 +117,7 @@ public class LongListLabel extends AbstractLabel implements Label {
 
 	@Override
 	public int toBitStream(final OutputBitStream outputBitStream, final int sourceUnused) throws IOException {
-		int bitsWritten = outputBitStream.writeDelta(length());
+		int bitsWritten = outputBitStream.writeDelta(values.size());
 		for (long l: values)
 			bitsWritten += outputBitStream.writeLongDelta(l);
 		return bitsWritten;
@@ -127,6 +127,12 @@ public class LongListLabel extends AbstractLabel implements Label {
 	@Override
 	public int fixedWidth() {
 		return -1;
+	}
+
+	/** Join the lists from this and another label.
+	 */
+	public void merge(LongListLabel other) {
+		values.addAll(other.values);
 	}
 
 	/** Returns the amount of longs stored in this label.
