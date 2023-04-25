@@ -66,6 +66,11 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	 */
 	public static final LabelMapping DEFAULT_LABEL_MAPPING = (prototype, transaction) -> ((LongArrayListLabel) prototype).init(Arrays.hashCode(transaction));
 	/**
+	 * The default label merge function.
+	 */
+	public static final LabelMergeStrategy DEFAULT_LABEL_MERGE = (first, second) -> ((LongArrayListLabel) second).merge((LongArrayListLabel) first);
+
+	/**
 	 * The default logger.
 	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger(TransactionInputsOutputsASCIIGraph.class);
@@ -87,11 +92,11 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	public long[] addresses;
 
 	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs) throws IOException {
-		this(inputsIs, outputsIs, null, -1, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING, null);
+		this(inputsIs, outputsIs, null, -1, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING, DEFAULT_LABEL_MERGE);
 	}
 
 	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2LongFunction<byte[]> addressMap, final int numNodes) throws IOException {
-		this(inputsIs, outputsIs, addressMap, numNodes, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING, null);
+		this(inputsIs, outputsIs, addressMap, numNodes, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING, DEFAULT_LABEL_MERGE);
 	}
 
 	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2LongFunction<byte[]> addressMap, final int numNodes, final Label labelPrototype, final LabelMapping labelMapping, final LabelMergeStrategy labelMergeStrategy) throws IOException {
@@ -241,7 +246,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 						new FlaggedOption("zetaK", JSAP.INTEGER_PARSER, String.valueOf(BVGraph.DEFAULT_ZETA_K), JSAP.NOT_REQUIRED, 'k', "zeta-k", "The k parameter for zeta-k codes."),
 						new FlaggedOption("labelPrototype", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'p', "label-prototype", "The prototype of the labels."),
 						new FlaggedOption("labelMapping", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'M', "label-mapping", "A serialised function from strings to the given label prototype that will be used to translate label strings to label object."),
-						new FlaggedOption("labelMergeStrategy", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'e', "label-merge-strategy", "A serialized LabelMergeStrategy object defining how to treat duplicate arcs with the same label."),
+						new FlaggedOption("labelMergeStrategy", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'e', "label-merge-strategy", "A serialized LabelMergeStrategy object defining how to treat duplicate arcs with the same label (pass 'ignored' to keep only the last occurrence of the labels)."),
 						new FlaggedOption("statistics", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'S', "statistics", "A directory for the statistics gathered during computation"),
 						new UnflaggedOption("inputs", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, JSAP.NOT_GREEDY, "The inputs of the transactions in the blockchain, sorted by transaction."),
 						new UnflaggedOption("outputs", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, JSAP.NOT_GREEDY, "The outputs of the transactions in the blockchain, sorted by transaction."),
@@ -317,11 +322,11 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			labelMapping = (prototype, transaction) -> ((LongArrayListLabel) prototype).add(transactionMap.getLong(transaction));
 		}
 
-		LabelMergeStrategy labelMergeStrategy = null; // null => keep the last label encountered when solving duplicates
+		LabelMergeStrategy labelMergeStrategy = DEFAULT_LABEL_MERGE;
 		if (jsapResult.userSpecified("labelMergeStrategy")) {
-			labelMergeStrategy = (LabelMergeStrategy) BinIO.loadObject(jsapResult.getString("labelMergeStrategy"));
-		} else if (transactionMap != null) {
-			labelMergeStrategy = (first, second) -> ((LongArrayListLabel) first).merge((LongArrayListLabel) second);
+			String mrg = jsapResult.getString("labelMergeStrategy");
+			// null => keep only the last label encountered when solving duplicates
+			labelMergeStrategy = mrg.equals("ignored") ? null : (LabelMergeStrategy) BinIO.loadObject(mrg);
 		}
 
 		File tempDir = null;
