@@ -6,12 +6,12 @@ import it.unimi.dsi.io.OutputBitStream;
 
 import java.io.IOException;
 
-public class ArrayListLongsLabel extends AbstractLongsLabel {
-	public ArrayListLongsLabel(String key, long ...longs) {
+public class LongArrayListLabel extends AbstractLongsLabel {
+	public LongArrayListLabel(String key, long ...longs) {
 		super(key, LongArrayList.of(longs));
 	}
 
-	public ArrayListLongsLabel(String key, LongArrayList longs) {
+	public LongArrayListLabel(String key, LongArrayList longs) {
 		super(key, longs);
 	}
 
@@ -37,7 +37,7 @@ public class ArrayListLongsLabel extends AbstractLongsLabel {
 
 	@Override
 	public Label copy() {
-		return new ArrayListLongsLabel(key, values.toLongArray());
+		return new LongArrayListLabel(key, values.toLongArray());
 	}
 
 	@Override
@@ -48,8 +48,16 @@ public class ArrayListLongsLabel extends AbstractLongsLabel {
 	/** Join the lists from this and another label.
 	 * @return the current label.
 	 */
-	public ArrayListLongsLabel merge(ArrayListLongsLabel other) {
+	public LongArrayListLabel merge(LongArrayListLabel other) {
 		values.addAll(other.values);
+		return this;
+	}
+
+	/** Add an element to the list of longs.
+	 * @return the current label.
+	 */
+	public LongArrayListLabel add(final long l) {
+		this.values.add(l);
 		return this;
 	}
 }
