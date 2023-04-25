@@ -17,8 +17,6 @@
 
 package it.unimi.dsi.webgraph.labelling;
 
-import it.unimi.dsi.fastutil.io.BinIO;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
 import it.unimi.dsi.io.InputBitStream;
 import it.unimi.dsi.io.OutputBitStream;
@@ -26,41 +24,46 @@ import it.unimi.dsi.io.OutputBitStream;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 
-/** A list of longs label.
+/** An abstract (single-attribute) longs label.
  *
- * <p>This class provides basic methods for a label holding a variable amount of longs.
+ * <p>This class provides basic methods for a label holding multiple longs.
+ * Concrete implementations may impose further requirements on the longs.
+ *
+ * <p>Implementing subclasses must provide constructors, {@link Label#copy()},
+ * {@link Label#fromBitStream(it.unimi.dsi.io.InputBitStream, int)}, {@link Label#toBitStream(it.unimi.dsi.io.OutputBitStream, int)}
+ * and possibly override {@link #toString()}.
  */
 
-public class LongListLabel extends AbstractLabel implements Label {
+public abstract class AbstractLongsLabel extends AbstractLabel implements Label {
 	/** The key of the attribute represented by this label. */
 	protected final String key;
 	/** The value of the attribute represented by this label. */
 	public LongList values;
 
-	/** Creates a new long list label from a list of longs.
+	/** Creates a new longs label from a list of longs.
 	 *
 	 * @param key the (only) key of this label.
 	 * @param values the values of this label.
 	 */
-	public LongListLabel(final String key, final LongList values) {
+	public AbstractLongsLabel(final String key, final LongList values) {
 		this.key = key;
 		this.values = values;
 	}
 
-	/** Creates a new long list label from a long array.
+	/** Creates a new longs label from a long array.
 	 *
 	 * @param key the (only) key of this label.
 	 * @param values the values of this label.
 	 */
-	public LongListLabel(final String key, final long ...values) {
+	public AbstractLongsLabel(final String key, final long ...values) {
 		this(key, LongList.of(values));
 	}
 
-	/** Creates a new long list label without any values.
+	/** Creates a new longs label without any values.
 	 *
 	 * @param key the (only) key of this label.
 	 */
-	public LongListLabel(final String key) {
+	public AbstractLongsLabel(final String key) {
 		this(key, new long[] {});
 	}
 
@@ -76,7 +79,7 @@ public class LongListLabel extends AbstractLabel implements Label {
 
 	@Override
 	public Class<?>[] attributeTypes() {
-		return new Class<?>[] { LongList.class };
+		return new Class<?>[] { values.getClass() };
 	}
 
 	@Override
@@ -98,43 +101,6 @@ public class LongListLabel extends AbstractLabel implements Label {
 		return values;
 	}
 
-	@Override
-	public Label copy() {
-		return new LongListLabel(key, values);
-	}
-
-	@Override
-	public int fromBitStream(final InputBitStream inputBitStream, final int sourceUnused) throws IOException {
-		long start = inputBitStream.readBits();
-		int length = inputBitStream.readDelta();
-
-		values.size(length);
-		for (int i = 0; i < length; i++)
-			values.set(i, inputBitStream.readLongDelta());
-
-		return (int) (inputBitStream.readBits() - start);
-	}
-
-	@Override
-	public int toBitStream(final OutputBitStream outputBitStream, final int sourceUnused) throws IOException {
-		int bitsWritten = outputBitStream.writeDelta(values.size());
-		for (long l: values)
-			bitsWritten += outputBitStream.writeLongDelta(l);
-		return bitsWritten;
-
-	}
-
-	@Override
-	public int fixedWidth() {
-		return -1;
-	}
-
-	/** Join the lists from this and another label.
-	 */
-	public void merge(LongListLabel other) {
-		values.addAll(other.values);
-	}
-
 	/** Returns the amount of longs stored in this label.
 	 * @return the length of this label.
 	 */
@@ -150,5 +116,16 @@ public class LongListLabel extends AbstractLabel implements Label {
 	@Override
 	public String toSpec() {
 		return this.getClass().getName() + "(" + key + ")";
+	}
+
+	@Override
+	public boolean equals(final Object x) {
+		if (x instanceof AbstractLongsLabel) return (values.equals(((AbstractLongsLabel)x).values));
+		else return false;
+	}
+
+	@Override
+	public int hashCode() {
+		return values.hashCode();
 	}
 }
