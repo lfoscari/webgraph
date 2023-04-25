@@ -4,11 +4,11 @@ set -e
 set -o pipefail
 
 if [[ "$3" == "" ]]; then
-	echo "$(basename "$0") DIR NTHREADS {INPUT|OUTPUT} [ADDRESS|TRANSACTION]" 1>&2
+	echo "$(basename "$0") DIR NTHREADS {INPUT|OUTPUT} [ADDRESS|TRANSACTION|ALL]" 1>&2
 	echo "Reads files in DIR and processes them using NTHREADS parallel sorts." 1>&2
 	echo "Files are processed as inputs is \"input\" is specified, otherwise as outputs if \"output\" is specified." 1>&2
 	echo "If no further option is given, addresses and transactions will be extracted from the files, sorting by transaction." 1>&2
-	echo "Otherwise by specifying either \"address\" or \"transaction\" it is possible to choose." 1>&2
+	echo "Otherwise by specifying either \"address\", \"transaction\" or \"all\" it is possible to choose to extract only the addresses, only the transactions or simply sort the data by transaction." 1>&2
 	exit 1
 fi
 
@@ -22,8 +22,8 @@ if [[ "$SOURCE" != "output" && "$SOURCE" != "input" ]]; then
 	exit 1
 fi
 
-if [[ "$TARGET" != "" && "$TARGET" != "address" && "$TARGET" != "transaction" ]]; then
-	echo "Target \"$TARGET\" must be either empty, \"address\" or \"transaction\""
+if [[ "$TARGET" != "" && "$TARGET" != "address" && "$TARGET" != "transaction" && "$TARGET" != "all" ]]; then
+	echo "Target \"$TARGET\" must be either empty, \"address\", \"transaction\" or \"all\""
 	exit 1
 fi
 
@@ -63,6 +63,8 @@ for SPLIT in $SPLITS; do
 			(tail -q -n+2 $(cat $SPLIT) | cut -f7,10 | awk '{ if ($2 == 0) print $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
 		elif [[ "$TARGET" == "transaction" ]]; then
 			(tail -q -n+2 $(cat $SPLIT) | cut -f2,10 | awk '{ if ($2 == 0) print $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
+		elif [[ "$TARGET" == "all" ]]; then
+		  (tail -q -n+2 $(cat $SPLIT) | awk '{ if ($10 == 0) print $7 "\t" $0 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
 		fi
 	elif [[ "$SOURCE" == "input" ]]; then
 		if [[ "$TARGET" == "" ]]; then
@@ -71,6 +73,8 @@ for SPLIT in $SPLITS; do
 			(tail -q -n+2 $(cat $SPLIT) | cut -f7 | LC_ALL=C sort -S2G >$SPLIT.pipe) &
 		elif [[ "$TARGET" == "transaction" ]]; then
 			(tail -q -n+2 $(cat $SPLIT) | cut -f13 | LC_ALL=C sort -S2G >$SPLIT.pipe) &
+    elif [[ "$TARGET" == "all" ]]; then
+      (tail -q -n+2 $(cat $SPLIT) | awk '{ print $2 "\t" $0 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
 		fi
 	fi
 done
