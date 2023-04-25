@@ -62,11 +62,11 @@ public class LongArrayListLabel extends AbstractLongsLabel {
 	}
 
 	/** Reinitialize the current label from the given longs
-	 * @return the current label.
+	 * @return the given long.
 	 */
-	public LongArrayListLabel init(final long l) {
+	public long init(final long l) {
 		this.values.size(1);
 		this.values.set(0, l);
-		return this;
+		return l;
 	}
 }
