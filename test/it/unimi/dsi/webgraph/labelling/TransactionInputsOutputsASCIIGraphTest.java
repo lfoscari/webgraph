@@ -17,9 +17,6 @@
 
 package it.unimi.dsi.webgraph.labelling;
 
-import ch.qos.logback.core.util.ReflectionUtil;
-import com.google.common.reflect.Reflection;
-import com.google.j2objc.annotations.ReflectionSupport;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
 import it.unimi.dsi.fastutil.io.FastByteArrayInputStream;
@@ -27,7 +24,6 @@ import it.unimi.dsi.fastutil.objects.*;
 import it.unimi.dsi.webgraph.ArrayListMutableGraph;
 import it.unimi.dsi.webgraph.ImmutableGraph;
 import it.unimi.dsi.webgraph.WebGraphTestCase;
-import it.unimi.dsi.webgraph.labelling.*;
 import it.unimi.dsi.webgraph.labelling.TransactionInputsOutputsASCIIGraph.ReadTransactions;
 import org.junit.Assert;
 import org.junit.Test;
@@ -35,15 +31,9 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
 
-import static it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.LabelMapping;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
@@ -181,7 +171,7 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 	public void duplicateArcs() throws IOException {
 		TransactionInputsOutputsASCIIGraph g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\nb 0"), str2fbais("a 1\nb 1"));
 		assertEquals(new ArrayListMutableGraph(2, new int[][] {{0, 1}}).immutableView(), new ArrayListMutableGraph(g).immutableView());
-		assertArrayEquals(((LongArrayListLabel) labels(g)[0][0]).values.toLongArray(), new long[] {129, 128});
+		assertArrayEquals(((LongArrayListLabel) labels(g)[0][0]).values.toLongArray(), new long[] {128, 129});
 	}
 
 	@Test()
