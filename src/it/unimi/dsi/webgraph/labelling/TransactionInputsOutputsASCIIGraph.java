@@ -308,21 +308,22 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		Label labelPrototype = DEFAULT_LABEL_PROTOTYPE;
 		if (jsapResult.userSpecified("labelPrototype")) {
 			labelPrototype = (Label) BinIO.loadObject(jsapResult.getString("labelPrototype"));
-		} else if (transactionMap != null && transactionMap.size() != -1) {
-			int maxBitsForTransactions = 64 - Long.numberOfLeadingZeros(transactionMap.size() - 1);
-			labelPrototype = new FixedWidthLongLabel("transaction-id", maxBitsForTransactions);
+		} else if (transactionMap != null) {
+			labelPrototype = new LongArrayListLabel("transaction-id");
 		}
 
 		LabelMapping labelMapping = DEFAULT_LABEL_MAPPING;
 		if (jsapResult.userSpecified("labelMapping")) {
 			labelMapping = (LabelMapping) BinIO.loadObject(jsapResult.getString("labelMapping"));
 		} else if (transactionMap != null) {
-			labelMapping = (prototype, transaction) -> ((FixedWidthLongLabel) prototype).value = transactionMap.getLong(transaction);
+			labelMapping = (prototype, transaction) -> ((LongArrayListLabel) prototype).add(transactionMap.getLong(transaction));
 		}
 
-		LabelMergeStrategy labelMergeStrategy = null;
+		LabelMergeStrategy labelMergeStrategy = null; // null => keep the last label encountered when solving duplicates
 		if (jsapResult.userSpecified("labelMergeStrategy")) {
 			labelMergeStrategy = (LabelMergeStrategy) BinIO.loadObject(jsapResult.getString("labelMergeStrategy"));
+		} else if (transactionMap != null) {
+			labelMergeStrategy = (first, second) -> ((LongArrayListLabel) first).merge((LongArrayListLabel) second);
 		}
 
 		File tempDir = null;
@@ -404,14 +405,12 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	private static class Statistics implements Closeable {
 		private final FastBufferedOutputStream totalInputsOutputs;
 		private final FastBufferedOutputStream uniqueInputsOutputs;
-		private final FastBufferedOutputStream duplicateInputsOutputs;
 
 		private final MutableString ms = new MutableString();
 
 		public Statistics(Path statisticsDirectory) throws IOException {
 			totalInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("total.stat"), CREATE, TRUNCATE_EXISTING));
 			uniqueInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("unique.stat"), CREATE, TRUNCATE_EXISTING));
-			duplicateInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("duplicates.stat"), CREATE, TRUNCATE_EXISTING));
 		}
 
 		public void update(long transactionId, IntArrayList inputAddresses, IntArrayList outputAddresses) throws IOException {
@@ -422,7 +421,6 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 			log(totalInputsOutputs, transactionId, inputsAmount, outputsAmount);
 			log(uniqueInputsOutputs, transactionId, uniqueInputs, uniqueOutputs);
-			log(duplicateInputsOutputs, transactionId, inputsAmount - uniqueInputs, outputsAmount - uniqueOutputs);
 		}
 
 		private void log(FastBufferedOutputStream dest, long transactionId, long ...data) throws IOException {
@@ -445,7 +443,6 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		public void close() throws IOException {
 			this.totalInputsOutputs.close();
 			this.uniqueInputsOutputs.close();
-			this.duplicateInputsOutputs.close();
 		}
 	}
 
