@@ -61,7 +61,7 @@ public class LongArrayListLabel extends AbstractLongsLabel {
 		return this;
 	}
 
-	/** Reinitialized the current label from the given longs
+	/** Reinitialize the current label from the given longs
 	 * @return the current label.
 	 */
 	public LongArrayListLabel init(final long l) {
