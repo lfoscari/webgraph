@@ -319,7 +319,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		if (jsapResult.userSpecified("labelMapping")) {
 			labelMapping = (LabelMapping) BinIO.loadObject(jsapResult.getString("labelMapping"));
 		} else if (transactionMap != null) {
-			labelMapping = (prototype, transaction) -> ((LongArrayListLabel) prototype).add(transactionMap.getLong(transaction));
+			labelMapping = (prototype, transaction) -> ((LongArrayListLabel) prototype).init(transactionMap.getLong(transaction));
 		}
 
 		LabelMergeStrategy labelMergeStrategy = DEFAULT_LABEL_MERGE;
