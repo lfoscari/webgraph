@@ -12,7 +12,7 @@ public class LongArrayListLabel extends AbstractLongListLabel {
 	}
 
 	public LongArrayListLabel(final String ...arg) {
-		this(arg[0], LongArrayList.of(Long.parseLong(arg[1])));
+		this(arg[0], LongArrayList.of());
 	}
 
 	@Override
