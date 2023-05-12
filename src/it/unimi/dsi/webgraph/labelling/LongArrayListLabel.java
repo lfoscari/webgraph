@@ -15,6 +15,10 @@ public class LongArrayListLabel extends AbstractLongsLabel {
 		super(key, longs);
 	}
 
+	public LongArrayListLabel(final String key) {
+		this(key, LongArrayList.of());
+	}
+
 	@Override
 	public int fromBitStream(final InputBitStream inputBitStream, final int sourceUnused) throws IOException {
 		long start = inputBitStream.readBits();
