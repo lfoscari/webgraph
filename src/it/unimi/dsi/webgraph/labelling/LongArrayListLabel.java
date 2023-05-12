@@ -6,17 +6,13 @@ import it.unimi.dsi.io.OutputBitStream;
 
 import java.io.IOException;
 
-public class LongArrayListLabel extends AbstractLongsLabel {
-	public LongArrayListLabel(String key, long ...longs) {
-		super(key, LongArrayList.of(longs));
-	}
-
+public class LongArrayListLabel extends AbstractLongListLabel {
 	public LongArrayListLabel(String key, LongArrayList longs) {
 		super(key, longs);
 	}
 
-	public LongArrayListLabel(final String key) {
-		this(key, LongArrayList.of());
+	public LongArrayListLabel(final String ...arg) {
+		this(arg[0], LongArrayList.of(Long.parseLong(arg[1])));
 	}
 
 	@Override
@@ -41,7 +37,7 @@ public class LongArrayListLabel extends AbstractLongsLabel {
 
 	@Override
 	public Label copy() {
-		return new LongArrayListLabel(key, values.toLongArray());
+		return new LongArrayListLabel(key, new LongArrayList(values));
 	}
 
 	@Override

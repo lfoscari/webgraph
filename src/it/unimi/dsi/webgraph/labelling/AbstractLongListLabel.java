@@ -18,10 +18,7 @@
 package it.unimi.dsi.webgraph.labelling;
 
 import it.unimi.dsi.fastutil.longs.LongList;
-import it.unimi.dsi.io.InputBitStream;
-import it.unimi.dsi.io.OutputBitStream;
 
-import java.io.IOException;
 import java.util.NoSuchElementException;
 
 /** An abstract (single-attribute) longs label.
@@ -34,7 +31,7 @@ import java.util.NoSuchElementException;
  * and possibly override {@link #toString()}.
  */
 
-public abstract class AbstractLongsLabel extends AbstractLabel implements Label {
+public abstract class AbstractLongListLabel extends AbstractLabel implements Label {
 	/** The key of the attribute represented by this label. */
 	protected final String key;
 	/** The value of the attribute represented by this label. */
@@ -45,7 +42,7 @@ public abstract class AbstractLongsLabel extends AbstractLabel implements Label 
 	 * @param key the (only) key of this label.
 	 * @param values the values of this label.
 	 */
-	public AbstractLongsLabel(final String key, final LongList values) {
+	public AbstractLongListLabel(final String key, final LongList values) {
 		this.key = key;
 		this.values = values;
 	}
@@ -55,7 +52,7 @@ public abstract class AbstractLongsLabel extends AbstractLabel implements Label 
 	 * @param key the (only) key of this label.
 	 * @param values the values of this label.
 	 */
-	public AbstractLongsLabel(final String key, final long ...values) {
+	public AbstractLongListLabel(final String key, final long ...values) {
 		this(key, LongList.of(values));
 	}
 
@@ -63,7 +60,7 @@ public abstract class AbstractLongsLabel extends AbstractLabel implements Label 
 	 *
 	 * @param key the (only) key of this label.
 	 */
-	public AbstractLongsLabel(final String key) {
+	public AbstractLongListLabel(final String key) {
 		this(key, new long[] {});
 	}
 
@@ -120,7 +117,7 @@ public abstract class AbstractLongsLabel extends AbstractLabel implements Label 
 
 	@Override
 	public boolean equals(final Object x) {
-		if (x instanceof AbstractLongsLabel) return (values.equals(((AbstractLongsLabel)x).values));
+		if (x instanceof AbstractLongListLabel) return (values.equals(((AbstractLongListLabel)x).values));
 		else return false;
 	}
 
