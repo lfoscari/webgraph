@@ -39,6 +39,7 @@ public class MergeableFixedWidthLongListLabel extends FixedWidthLongListLabel {
 
 	public MergeableFixedWidthLongListLabel(final String key, final int width, final long[] value) {
 		super(key, width, value);
+		size = value.length;
 	}
 
 	@Override
