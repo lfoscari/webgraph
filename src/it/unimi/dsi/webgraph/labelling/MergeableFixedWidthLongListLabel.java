@@ -37,6 +37,15 @@ public class MergeableFixedWidthLongListLabel extends FixedWidthLongListLabel {
 		super(key, width);
 	}
 
+	public MergeableFixedWidthLongListLabel(final String key, final int width, final long[] value) {
+		super(key, width, value);
+	}
+
+	@Override
+	public Label copy() {
+		return new MergeableFixedWidthLongListLabel(key, width, value.clone());
+	}
+
 	@Override
 	public int fromBitStream(final InputBitStream inputBitStream, final int sourceUnused) throws IOException {
 		int readBits = super.fromBitStream(inputBitStream, sourceUnused);

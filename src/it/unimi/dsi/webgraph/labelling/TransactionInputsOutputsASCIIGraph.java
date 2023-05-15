@@ -338,7 +338,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		if (jsapResult.userSpecified("batchSize")) {
 			batchSize = jsapResult.getInt("batchSize");
 		} else if (transactionMap != null && transactionMap.size() != -1) {
-			batchSize = batchSize(transactionMap.size());
+			// batchSize = batchSize(transactionMap.size());
 			int maxBitsForTransactions = 64 - Long.numberOfLeadingZeros(transactionMap.size() - 1);
 			labelPrototype = new MergeableFixedWidthLongListLabel("transaction-id", maxBitsForTransactions);
 

@@ -31,7 +31,7 @@ import java.util.Arrays;
 
 public class FixedWidthLongListLabel extends AbstractLongListLabel {
 	/** The bit width used to represent the value of this label. */
-	private final int width;
+	protected final int width;
 
 	/** Creates a new fixed-width int label.
 	 *
