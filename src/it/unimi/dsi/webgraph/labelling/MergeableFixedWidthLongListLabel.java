@@ -54,6 +54,13 @@ public class MergeableFixedWidthLongListLabel extends FixedWidthLongListLabel {
 		return readBits;
 	}
 
+	@Override
+	public int toBitStream(final OutputBitStream outputBitStream, final int sourceUnused) throws IOException {
+		int bits = outputBitStream.writeGamma(size);
+		for (int i = 0; i < size; i++) bits += outputBitStream.writeLong(value[i], width);
+		return bits;
+	}
+
 	public MergeableFixedWidthLongListLabel merge(MergeableFixedWidthLongListLabel other) {
 		value = LongArrays.grow(value, size + other.size);
 		System.arraycopy(other.value, 0, value, size, other.size);
