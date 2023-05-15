@@ -31,7 +31,7 @@ import java.io.IOException;
  */
 
 public class MergeableFixedWidthLongListLabel extends FixedWidthLongListLabel {
-	public int size = 0;
+	protected int size = 0;
 
 	public MergeableFixedWidthLongListLabel(final String key, final int width) {
 		super(key, width);

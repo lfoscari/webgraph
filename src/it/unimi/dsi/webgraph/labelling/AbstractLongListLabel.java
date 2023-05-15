@@ -38,11 +38,11 @@ public abstract class AbstractLongListLabel extends AbstractLabel implements Lab
 	/** Creates a new longs label from a list of longs.
 	 *
 	 * @param key the (only) key of this label.
-	 * @param values the values of this label.
+	 * @param value the values of this label.
 	 */
-	public AbstractLongListLabel(final String key, final long[] values) {
+	public AbstractLongListLabel(final String key, final long[] value) {
 		this.key = key;
-		this.value = values;
+		this.value = value;
 	}
 
 	@Override

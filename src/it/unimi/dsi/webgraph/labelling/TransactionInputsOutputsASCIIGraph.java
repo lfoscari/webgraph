@@ -319,6 +319,12 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		Label labelPrototype = DEFAULT_LABEL_PROTOTYPE;
 		if (jsapResult.userSpecified("labelPrototype")) {
 			labelPrototype = (Label) BinIO.loadObject(jsapResult.getString("labelPrototype"));
+		} else if (transactionMap != null && transactionMap.size() != -1) {
+			// batchSize = batchSize(transactionMap.size());
+			final int maxBitsForTransactions = 64 - Long.numberOfLeadingZeros(transactionMap.size() - 1);
+			labelPrototype = new MergeableFixedWidthLongListLabel("transaction-id", maxBitsForTransactions);
+
+			pl.logger.info("Using " + maxBitsForTransactions + " bits for each transaction identifier");
 		}
 
 		LabelMapping labelMapping = DEFAULT_LABEL_MAPPING;
@@ -348,12 +354,6 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		int batchSize = -1;
 		if (jsapResult.userSpecified("batchSize")) {
 			batchSize = jsapResult.getInt("batchSize");
-		} else if (transactionMap != null && transactionMap.size() != -1) {
-			// batchSize = batchSize(transactionMap.size());
-			int maxBitsForTransactions = 64 - Long.numberOfLeadingZeros(transactionMap.size() - 1);
-			labelPrototype = new MergeableFixedWidthLongListLabel("transaction-id", maxBitsForTransactions);
-
-			pl.logger.info("Using " + maxBitsForTransactions + " bits for each transaction identifier and " + batchSize + " elements per batch");
 		}
 
 		Statistics statistics = null;
