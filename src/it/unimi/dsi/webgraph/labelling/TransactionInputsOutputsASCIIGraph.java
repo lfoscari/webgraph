@@ -60,7 +60,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	/**
 	 * The default label prototype.
 	 */
-	public static final Label DEFAULT_LABEL_PROTOTYPE = new MergeableFixedWidthLongListLabel("transaction-id");
+	public static final Label DEFAULT_LABEL_PROTOTYPE = new MergeableFixedWidthLongListLabel("transaction-id", Long.SIZE);
 	/**
 	 * The default label mapping function.
 	 */
@@ -340,6 +340,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		} else if (transactionMap != null && transactionMap.size() != -1) {
 			batchSize = batchSize(transactionMap.size());
 			int maxBitsForTransactions = 64 - Long.numberOfLeadingZeros(transactionMap.size() - 1);
+			labelPrototype = new MergeableFixedWidthLongListLabel("transaction-id", maxBitsForTransactions);
+
 			pl.logger.info("Using " + maxBitsForTransactions + " bits for each transaction identifier and " + batchSize + " elements per batch");
 		}
 
