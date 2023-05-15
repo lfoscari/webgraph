@@ -60,15 +60,15 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	/**
 	 * The default label prototype.
 	 */
-	public static final Label DEFAULT_LABEL_PROTOTYPE = new LongArrayListLabel("transaction-id");
+	public static final Label DEFAULT_LABEL_PROTOTYPE = new MergeableFixedWidthLongListLabel("transaction-id");
 	/**
 	 * The default label mapping function.
 	 */
-	public static final LabelMapping DEFAULT_LABEL_MAPPING = (prototype, transaction) -> ((LongArrayListLabel) prototype).init(Arrays.hashCode(transaction));
+	public static final LabelMapping DEFAULT_LABEL_MAPPING = (prototype, transaction) -> ((MergeableFixedWidthLongListLabel) prototype).value = new long[] {Arrays.hashCode(transaction)};
 	/**
 	 * The default label merge function.
 	 */
-	public static final LabelMergeStrategy DEFAULT_LABEL_MERGE = (first, second) -> ((LongArrayListLabel) second).merge((LongArrayListLabel) first);
+	public static final LabelMergeStrategy DEFAULT_LABEL_MERGE = (first, second) -> ((MergeableFixedWidthLongListLabel) second).merge((MergeableFixedWidthLongListLabel) first);
 
 	/**
 	 * The default logger.
@@ -319,7 +319,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		if (jsapResult.userSpecified("labelMapping")) {
 			labelMapping = (LabelMapping) BinIO.loadObject(jsapResult.getString("labelMapping"));
 		} else if (transactionMap != null) {
-			labelMapping = (prototype, transaction) -> ((LongArrayListLabel) prototype).init(transactionMap.getLong(transaction));
+			labelMapping = (prototype, transaction) -> ((MergeableFixedWidthLongListLabel) prototype).value = new long[] { transactionMap.getLong(transaction) };
 		}
 
 		LabelMergeStrategy labelMergeStrategy = DEFAULT_LABEL_MERGE;

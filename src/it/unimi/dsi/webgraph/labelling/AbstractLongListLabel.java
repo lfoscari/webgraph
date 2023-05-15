@@ -17,8 +17,6 @@
 
 package it.unimi.dsi.webgraph.labelling;
 
-import it.unimi.dsi.fastutil.longs.LongList;
-
 import java.util.NoSuchElementException;
 
 /** An abstract (single-attribute) longs label.
@@ -35,33 +33,16 @@ public abstract class AbstractLongListLabel extends AbstractLabel implements Lab
 	/** The key of the attribute represented by this label. */
 	protected final String key;
 	/** The value of the attribute represented by this label. */
-	public LongList values;
+	public long[] value;
 
 	/** Creates a new longs label from a list of longs.
 	 *
 	 * @param key the (only) key of this label.
 	 * @param values the values of this label.
 	 */
-	public AbstractLongListLabel(final String key, final LongList values) {
+	public AbstractLongListLabel(final String key, final long[] values) {
 		this.key = key;
-		this.values = values;
-	}
-
-	/** Creates a new longs label from a long array.
-	 *
-	 * @param key the (only) key of this label.
-	 * @param values the values of this label.
-	 */
-	public AbstractLongListLabel(final String key, final long ...values) {
-		this(key, LongList.of(values));
-	}
-
-	/** Creates a new longs label without any values.
-	 *
-	 * @param key the (only) key of this label.
-	 */
-	public AbstractLongListLabel(final String key) {
-		this(key, new long[] {});
+		this.value = values;
 	}
 
 	@Override
@@ -76,38 +57,34 @@ public abstract class AbstractLongListLabel extends AbstractLabel implements Lab
 
 	@Override
 	public Class<?>[] attributeTypes() {
-		return new Class<?>[] { values.getClass() };
+		return new Class<?>[] { value.getClass() };
 	}
 
 	@Override
 	public Object get(final String key) throws NoSuchElementException {
-		return getLongs(key);
-	}
-
-	public LongList getLongs(final String key) {
-		if (this.key.equals(key)) return values;
+		if (this.key.equals(key)) return value;
 		throw new IllegalArgumentException("Unknown key " + key);
 	}
 
 	@Override
 	public Object get() throws NoSuchElementException {
-		return getLongs();
-	}
-
-	public LongList getLongs() {
-		return values;
-	}
-
-	/** Returns the amount of longs stored in this label.
-	 * @return the length of this label.
-	 */
-	public int length() {
-		return values.size();
+		return value;
 	}
 
 	@Override
 	public String toString() {
-		return key + ":" + values;
+		return key + ":" + value;
+	}
+
+	@Override
+	public boolean equals(final Object x) {
+		if (x instanceof AbstractLongListLabel) return (value.equals(((AbstractLongListLabel)x).value));
+		else return false;
+	}
+
+	@Override
+	public int hashCode() {
+		return value.hashCode();
 	}
 
 	@Override
@@ -115,14 +92,11 @@ public abstract class AbstractLongListLabel extends AbstractLabel implements Lab
 		return this.getClass().getName() + "(" + key + ")";
 	}
 
-	@Override
-	public boolean equals(final Object x) {
-		if (x instanceof AbstractLongListLabel) return (values.equals(((AbstractLongListLabel)x).values));
-		else return false;
+	/** Returns the number of longs stored in this label.
+	 * @return the length of this label.
+	 */
+	public int length() {
+		return value.length;
 	}
 
-	@Override
-	public int hashCode() {
-		return values.hashCode();
-	}
 }
