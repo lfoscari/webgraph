@@ -171,15 +171,15 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 	public void duplicateArcs() throws IOException {
 		TransactionInputsOutputsASCIIGraph g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\nb 0"), str2fbais("a 1\nb 1"));
 		assertEquals(new ArrayListMutableGraph(2, new int[][] {{0, 1}}).immutableView(), new ArrayListMutableGraph(g).immutableView());
-		assertArrayEquals(((LongArrayListLabel) labels(g)[0][0]).values.toLongArray(), new long[] {128, 129});
+		assertArrayEquals(((LongArrayListLabel) labels(g)[0][0]).value.toLongArray(), new long[] {128, 129});
 	}
 
 	@Test()
 	public void multipleDuplicateArcs() throws IOException {
 		TransactionInputsOutputsASCIIGraph g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\nb 0"), str2fbais("a 1\na 2\nb 1\nb 2"), ADDRESS_MAP, 3);
 		assertEquals(new ArrayListMutableGraph(3, new int[][] {{0, 1}, {0, 2}}).immutableView(), new ArrayListMutableGraph(g).immutableView());
-		assertArrayEquals(((LongArrayListLabel) labels(g)[0][0]).values.toLongArray(), new long[] {128, 129});
-		assertArrayEquals(((LongArrayListLabel) labels(g)[0][1]).values.toLongArray(), new long[] {128, 129});
+		assertArrayEquals(((LongArrayListLabel) labels(g)[0][0]).value.toLongArray(), new long[] {128, 129});
+		assertArrayEquals(((LongArrayListLabel) labels(g)[0][1]).value.toLongArray(), new long[] {128, 129});
 	}
 
 	@Test
