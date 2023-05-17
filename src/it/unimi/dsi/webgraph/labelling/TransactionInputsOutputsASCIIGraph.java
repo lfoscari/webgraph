@@ -65,7 +65,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	 * The default label mapping function.
 	 */
 	public static final LabelMapping DEFAULT_LABEL_MAPPING = (prototype, transaction) -> {
-		long l = Arrays.hashCode(transaction);
+		long l = Math.abs(Arrays.hashCode(transaction));
 		((MergeableFixedWidthLongListLabel) prototype).value = new long[] { l };
 		((MergeableFixedWidthLongListLabel) prototype).size = 1;
 		return l;
@@ -331,6 +331,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		if (jsapResult.userSpecified("labelMapping")) {
 			labelMapping = (LabelMapping) BinIO.loadObject(jsapResult.getString("labelMapping"));
 		} else if (transactionMap != null) {
+			pl.logger.info("Building a label mapping function from the transaction map");
 			labelMapping = (prototype, transaction) -> {
 				long l = transactionMap.getLong(transaction);
 				((MergeableFixedWidthLongListLabel) prototype).value = new long[] { l };
