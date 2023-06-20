@@ -254,6 +254,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 						new FlaggedOption("labelMapping", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'M', "label-mapping", "A serialised function from strings to the given label prototype that will be used to translate label strings to label object."),
 						new FlaggedOption("labelMergeStrategy", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'e', "label-merge-strategy", "A serialized LabelMergeStrategy object defining how to treat duplicate arcs with the same label (pass 'ignored' to keep only the last occurrence of the labels)."),
 						new FlaggedOption("statistics", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'S', "statistics", "A directory for the statistics gathered during computation"),
+						new FlaggedOption("basenameUnderlying", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.NOT_REQUIRED, 'u', "basename-underlying", "The basename of the underlying graph"),
 						new UnflaggedOption("inputs", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, JSAP.NOT_GREEDY, "The inputs of the transactions in the blockchain, sorted by transaction."),
 						new UnflaggedOption("outputs", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, JSAP.NOT_GREEDY, "The outputs of the transactions in the blockchain, sorted by transaction."),
 						new UnflaggedOption("basename", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, JSAP.NOT_GREEDY, "The basename of the output graph"),
@@ -269,6 +270,11 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		pl.displayFreeMemory = true;
 
 		String basename = jsapResult.getString("basename");
+
+		String basenameUnderlying = basename + UNDERLYINGGRAPH_SUFFIX;
+		if (jsapResult.contains("basenameUnderlying")) {
+			basenameUnderlying = jsapResult.getString("basenameUnderlying");
+		}
 
 		File inputs = new File(jsapResult.getString("inputs"));
 		if (!inputs.exists()) throw new JSAPException(inputs + " file does not exist");
@@ -365,7 +371,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		}
 
 		final TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputs.toPath()), Files.newInputStream(outputs.toPath()), addressMap, n, labelPrototype, labelMapping, labelMergeStrategy, batchSize, statistics, tempDir, pl);
-		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, basename, basename + UNDERLYINGGRAPH_SUFFIX, windowSize, maxRefCount, minIntervalLength, zetaK, flags, pl);
+		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, basename, basenameUnderlying, windowSize, maxRefCount, minIntervalLength, zetaK, flags, pl);
 
 		if (addressMap == null) {
 			BinIO.storeLongs(graph.addresses, basename + IDS_EXTENSION);
