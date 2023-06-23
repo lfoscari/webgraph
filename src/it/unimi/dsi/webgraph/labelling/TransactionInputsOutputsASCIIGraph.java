@@ -60,7 +60,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	/**
 	 * The default label prototype.
 	 */
-	public static final Label DEFAULT_LABEL_PROTOTYPE = new MergeableFixedWidthLongListLabel("transaction-id", Long.SIZE - 1);
+	public static final Label DEFAULT_LABEL_PROTOTYPE = new MergeableFixedWidthLongListLabel("transaction-id", Long.SIZE - 2);
 	/**
 	 * The default label mapping function.
 	 */

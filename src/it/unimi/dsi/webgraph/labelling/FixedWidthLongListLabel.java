@@ -44,7 +44,7 @@ public class FixedWidthLongListLabel extends AbstractLongListLabel {
 		if (width < 0 || width > 63) throw new IllegalArgumentException("Width out of range: " + width);
 		for(int i = value.length; i-- != 0;)
 			if (value[i] < 0 || value[i] >= 1L << width)
-				throw new IllegalArgumentException("Value out of range: " + value[i]);
+				throw new IllegalArgumentException("Value out of range: " + value[i] + " (width: " + width + ")");
 		this.width = width;
 	}
 
