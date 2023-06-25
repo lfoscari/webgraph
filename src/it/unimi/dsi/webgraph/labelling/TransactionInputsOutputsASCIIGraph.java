@@ -175,7 +175,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 					source[j] = s;
 					target[j] = t;
 					start[j] = obs.writtenBits();
-					if (start[j] > 0) throw new ArithmeticException("OutputBitStream too small for the batchSize, try reducing it.");
+					if (start[j] < 0) throw new ArithmeticException("OutputBitStream too small for the batchSize, try reducing it.");
 					prototype.toBitStream(obs, s);
 					j++;
 
