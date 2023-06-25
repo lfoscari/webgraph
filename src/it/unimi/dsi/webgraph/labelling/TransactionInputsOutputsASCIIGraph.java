@@ -34,6 +34,7 @@ import it.unimi.dsi.lang.MutableString;
 import it.unimi.dsi.logging.ProgressLogger;
 import it.unimi.dsi.webgraph.*;
 import it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.LabelMapping;
+import org.apache.commons.math3.exception.NumberIsTooLargeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -140,7 +141,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			if (DEBUG) System.out.println("input");
 			final IntArrayList inputAddresses = inputs.nextAddresses();
 
-			if (inputAddresses.size() == 0) {
+			if (inputAddresses.isEmpty()) {
 				if (DEBUG) System.out.println("no more transactions inputs, terminating...");
 				break;
 			}
@@ -150,10 +151,10 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 			if (DEBUG) System.out.println();
 
-			if (outputAddresses.size() == 0) {
+			if (outputAddresses.isEmpty()) {
 				LOGGER.warn("Inconsistency: Couldn't find matching transaction!\n"
-						+ "\tinput at line " + inputs.lineNumber() + ":\t" + inputs.line() + "\n"
-						+ "\toutput at line " + outputs.lineNumber() + ":\t" + outputs.line() + "\n");
+							+ "\tinput at line " + inputs.lineNumber() + ":\t" + inputs.line() + "\n"
+							+ "\toutput at line " + outputs.lineNumber() + ":\t" + outputs.line() + "\n");
 				continue;
 			}
 
@@ -174,6 +175,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 					source[j] = s;
 					target[j] = t;
 					start[j] = obs.writtenBits();
+					if (start[j] > 0) throw new ArithmeticException("OutputBitStream too small for the batchSize, try reducing it.");
 					prototype.toBitStream(obs, s);
 					j++;
 
@@ -458,7 +460,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		}
 
 		private static long uniqueAddressesAmount(final IntArrayList addresses) {
-			if (addresses.size() == 0) return 0;
+			if (addresses.isEmpty()) return 0;
 			return new IntOpenHashSet(addresses).size();
 		}
 
