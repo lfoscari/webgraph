@@ -426,14 +426,14 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	}
 
 	private static class Statistics implements Closeable {
-		private final FastBufferedOutputStream totalInputsOutputs;
-		private final FastBufferedOutputStream uniqueInputsOutputs;
+		private final BufferedWriter totalInputsOutputs;
+		private final BufferedWriter uniqueInputsOutputs;
 
 		private final MutableString ms = new MutableString();
 
 		public Statistics(Path statisticsDirectory) throws IOException {
-			totalInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("total.stat"), CREATE, TRUNCATE_EXISTING));
-			uniqueInputsOutputs = new FastBufferedOutputStream(Files.newOutputStream(statisticsDirectory.resolve("unique.stat"), CREATE, TRUNCATE_EXISTING));
+			totalInputsOutputs = new BufferedWriter(new FileWriter(statisticsDirectory.resolve("total.stat").toFile(), false));
+			uniqueInputsOutputs = new BufferedWriter(new FileWriter(statisticsDirectory.resolve("unique.stat").toFile(), false));
 		}
 
 		public void update(long transactionId, IntArrayList inputAddresses, IntArrayList outputAddresses) throws IOException {
@@ -446,15 +446,13 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			log(uniqueInputsOutputs, transactionId, uniqueInputs, uniqueOutputs);
 		}
 
-		private void log(FastBufferedOutputStream dest, long transactionId, long ...data) throws IOException {
+		private void log(BufferedWriter dest, long ...data) throws IOException {
 			ms.length(0);
-			ms.append(transactionId);
-			for (long datum: data) {
-				ms.append("\t");
-				ms.append(datum);
+			for (int i = 0; i < data.length; i++) {
+				ms.append(data[i]);
+				if (i < data.length - 1) ms.append("\t");
 			}
-			ms.append("\n");
-			ms.writeSelfDelimUTF8(dest);
+			dest.write(ms.toCharArray());
 		}
 
 		private static long uniqueAddressesAmount(final IntArrayList addresses) {
