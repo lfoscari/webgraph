@@ -454,6 +454,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 				ms.append(data[i]);
 				if (i < data.length - 1) ms.append("\t");
 			}
+			ms.append("\n");
 			dest.write(ms.toCharArray());
 		}
 
