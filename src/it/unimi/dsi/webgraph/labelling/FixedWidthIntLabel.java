@@ -39,7 +39,7 @@ public class FixedWidthIntLabel extends AbstractIntLabel {
 	public FixedWidthIntLabel(final String key, final int width, final int value) {
 		super(key, value);
 		if (width < 0 || width > 31) throw new IllegalArgumentException("Width out of range: " + width);
-		if (value < 0 || value >= 1L << width) throw new IllegalArgumentException("Value out of range: " + Integer.toString(value));
+		if (value < 0 || value >= 1L << width) throw new IllegalArgumentException("Value out of range: " + value);
 		this.width = width;
 	}
 

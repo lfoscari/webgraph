@@ -17,6 +17,7 @@
 
 package it.unimi.dsi.webgraph.labelling;
 
+import java.util.Arrays;
 import java.util.NoSuchElementException;
 
 /** An abstract (single-attribute) longs label.
@@ -73,18 +74,18 @@ public abstract class AbstractLongListLabel extends AbstractLabel implements Lab
 
 	@Override
 	public String toString() {
-		return key + ":" + value;
+		return key + ":" + Arrays.toString(value);
 	}
 
 	@Override
 	public boolean equals(final Object x) {
-		if (x instanceof AbstractLongListLabel) return (value.equals(((AbstractLongListLabel)x).value));
+		if (x instanceof AbstractLongListLabel) return Arrays.equals(value, ((AbstractLongListLabel)x).value);
 		else return false;
 	}
 
 	@Override
 	public int hashCode() {
-		return value.hashCode();
+		return Arrays.hashCode(value);
 	}
 
 	@Override
