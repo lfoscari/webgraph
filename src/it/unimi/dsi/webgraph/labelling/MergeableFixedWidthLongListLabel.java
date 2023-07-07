@@ -42,6 +42,10 @@ public class MergeableFixedWidthLongListLabel extends FixedWidthLongListLabel {
 		size = value.length;
 	}
 
+	public MergeableFixedWidthLongListLabel(final String... arg) {
+		this(arg[0], Integer.parseInt(arg[1]));
+	}
+
 	@Override
 	public Label copy() {
 		return new MergeableFixedWidthLongListLabel(key, width, value.clone());
