@@ -467,7 +467,9 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 		@Override
 		public void close() throws IOException {
+			this.totalInputsOutputs.flush();
 			this.totalInputsOutputs.close();
+			this.uniqueInputsOutputs.flush();
 			this.uniqueInputsOutputs.close();
 		}
 	}
