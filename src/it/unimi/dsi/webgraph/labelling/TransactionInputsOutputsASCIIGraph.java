@@ -209,6 +209,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			addresses = map.getIds(tempDir);
 		}
 
+		if (statistics != null) statistics.close();
+
 		source = null;
 		target = null;
 		start = null;
