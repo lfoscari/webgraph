@@ -24,7 +24,7 @@ import it.unimi.dsi.fastutil.objects.*;
 import it.unimi.dsi.webgraph.ArrayListMutableGraph;
 import it.unimi.dsi.webgraph.ImmutableGraph;
 import it.unimi.dsi.webgraph.WebGraphTestCase;
-import it.unimi.dsi.webgraph.labelling.TransactionInputsOutputsASCIIGraph.ReadTransactions;
+import it.unimi.dsi.webgraph.labelling.TransactionInputsOutputsASCIIGraph.TransactionParser;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -43,7 +43,7 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 	byte[] currentLine;
 	int transactionStart, transactionEnd;
 
-	private void updateTransactionLine(ReadTransactions a) {
+	private void updateTransactionLine(TransactionParser a) {
 		currentLine = (byte[]) extract(a, "currentLine");
 		transactionStart = (int) extract(a, "transactionStart");
 		transactionEnd = (int) extract(a, "transactionEnd");
@@ -184,7 +184,7 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionOneLineTest() throws IOException {
-		ReadTransactions in = new ReadTransactions(str2fbis("a 0\nb 1\nc 2"), ADDRESS_MAP, 0, Integer.MAX_VALUE, null);
+		TransactionParser in = new TransactionParser(str2fbis("a 0\nb 1\nc 2"), ADDRESS_MAP, 0, Integer.MAX_VALUE, null);
 
 		assertArrayEquals(new int[] {0}, in.nextAddresses().toIntArray());
 		assertEquals("a", in.transaction(Charset.defaultCharset()));
@@ -198,8 +198,8 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionPairOneLineTest() throws IOException {
-		ReadTransactions a = new ReadTransactions(str2fbis("a 0"), ADDRESS_MAP);
-		ReadTransactions b = new ReadTransactions(str2fbis("a 1"), ADDRESS_MAP);
+		TransactionParser a = new TransactionParser(str2fbis("a 0"), ADDRESS_MAP);
+		TransactionParser b = new TransactionParser(str2fbis("a 1"), ADDRESS_MAP);
 
 		assertArrayEquals(new int[] {0}, a.nextAddresses().toIntArray());
 		assertEquals("a", a.transaction(Charset.defaultCharset()));
@@ -214,8 +214,8 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionPairMultipleLines() throws IOException {
-		ReadTransactions a = new ReadTransactions(str2fbis("a 0\nb 0\n c 0"), ADDRESS_MAP);
-		ReadTransactions b = new ReadTransactions(str2fbis("c 1"), ADDRESS_MAP);
+		TransactionParser a = new TransactionParser(str2fbis("a 0\nb 0\n c 0"), ADDRESS_MAP);
+		TransactionParser b = new TransactionParser(str2fbis("c 1"), ADDRESS_MAP);
 
 		assertArrayEquals(new int[] {0}, a.nextAddresses().toIntArray());
 		assertEquals("a", a.transaction(Charset.defaultCharset()));
@@ -244,8 +244,8 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionPairMultipleLinesInverted() throws IOException {
-		ReadTransactions a = new ReadTransactions(str2fbis("c 1"), ADDRESS_MAP);
-		ReadTransactions b = new ReadTransactions(str2fbis("a 0\nb 0\n c 0"), ADDRESS_MAP);
+		TransactionParser a = new TransactionParser(str2fbis("c 1"), ADDRESS_MAP);
+		TransactionParser b = new TransactionParser(str2fbis("a 0\nb 0\n c 0"), ADDRESS_MAP);
 
 		assertArrayEquals(new int[] {1}, a.nextAddresses().toIntArray());
 		assertEquals("c", a.transaction(Charset.defaultCharset()));
@@ -258,7 +258,7 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionMultipleLinesMultipleAddresses() throws IOException {
-		ReadTransactions a = new ReadTransactions(str2fbis("a 0\na 1\n a 2"), ADDRESS_MAP);
+		TransactionParser a = new TransactionParser(str2fbis("a 0\na 1\n a 2"), ADDRESS_MAP);
 
 		assertArrayEquals(new int[] {0, 1, 2}, a.nextAddresses().toIntArray());
 		assertEquals("a", a.transaction(Charset.defaultCharset()));
@@ -266,8 +266,8 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionPairMultipleLinesMultipleAddresses() throws IOException {
-		ReadTransactions a = new ReadTransactions(str2fbis("a 0\na 1\n a 2"), ADDRESS_MAP);
-		ReadTransactions b = new ReadTransactions(str2fbis("a 0\na 3"), ADDRESS_MAP);
+		TransactionParser a = new TransactionParser(str2fbis("a 0\na 1\n a 2"), ADDRESS_MAP);
+		TransactionParser b = new TransactionParser(str2fbis("a 0\na 3"), ADDRESS_MAP);
 
 		assertArrayEquals(new int[] {0, 1, 2}, a.nextAddresses().toIntArray());
 		assertEquals("a", a.transaction(Charset.defaultCharset()));
@@ -280,8 +280,8 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionPairMultipleLinesMultipleAddressesSkipping() throws IOException {
-		ReadTransactions a = new ReadTransactions(str2fbis("b 0\nb 1\n b 2"), ADDRESS_MAP);
-		ReadTransactions b = new ReadTransactions(str2fbis("a 0\na 0\na 0\nb 0\nb 3"), ADDRESS_MAP);
+		TransactionParser a = new TransactionParser(str2fbis("b 0\nb 1\n b 2"), ADDRESS_MAP);
+		TransactionParser b = new TransactionParser(str2fbis("a 0\na 0\na 0\nb 0\nb 3"), ADDRESS_MAP);
 
 		assertArrayEquals(new int[] {0, 1, 2}, a.nextAddresses().toIntArray());
 		assertEquals("b", a.transaction(Charset.defaultCharset()));
@@ -294,8 +294,8 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void readTransactionInconsistency() throws IOException {
-		ReadTransactions a = new ReadTransactions(str2fbis("a 0\nb 1"), ADDRESS_MAP);
-		ReadTransactions b = new ReadTransactions(str2fbis("b 0"), ADDRESS_MAP);
+		TransactionParser a = new TransactionParser(str2fbis("a 0\nb 1"), ADDRESS_MAP);
+		TransactionParser b = new TransactionParser(str2fbis("b 0"), ADDRESS_MAP);
 
 		assertArrayEquals(new int[] {0}, a.nextAddresses().toIntArray());
 		assertEquals("a", a.transaction(Charset.defaultCharset()));

@@ -24,17 +24,20 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.io.BinIO;
 import it.unimi.dsi.fastutil.io.FastBufferedInputStream;
-import it.unimi.dsi.fastutil.io.FastBufferedOutputStream;
 import it.unimi.dsi.fastutil.io.FastByteArrayOutputStream;
+import it.unimi.dsi.fastutil.objects.Object2IntFunction;
 import it.unimi.dsi.fastutil.objects.Object2LongFunction;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.io.InputBitStream;
 import it.unimi.dsi.io.OutputBitStream;
 import it.unimi.dsi.lang.MutableString;
 import it.unimi.dsi.logging.ProgressLogger;
-import it.unimi.dsi.webgraph.*;
+import it.unimi.dsi.sux4j.mph.GOV3Function;
+import it.unimi.dsi.webgraph.BVGraph;
+import it.unimi.dsi.webgraph.ImmutableSequentialGraph;
+import it.unimi.dsi.webgraph.ScatteredArcsASCIIGraph;
+import it.unimi.dsi.webgraph.Transform;
 import it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.LabelMapping;
-import org.apache.commons.math3.exception.NumberIsTooLargeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,13 +48,55 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
-import static it.unimi.dsi.fastutil.io.FastBufferedInputStream.*;
+import static it.unimi.dsi.fastutil.io.FastBufferedInputStream.ALL_TERMINATORS;
 import static it.unimi.dsi.webgraph.Transform.processTransposeBatch;
 import static it.unimi.dsi.webgraph.labelling.ArcLabelledImmutableGraph.UNDERLYINGGRAPH_SUFFIX;
 import static it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.getLong;
-import static java.nio.file.StandardOpenOption.*;
 
-// TODO: Description and methods spec
+/**
+ * An {@link ArcLabelledImmutableGraph} that corresponds to a labelled graph stored as a list of inputs and outputs of
+ * a cryptocurrency.
+ *
+ * <p>
+ * A file containing the inputs for all transactions and counterpart for the outputs describe a transaction graph. The
+ * two files follow the same format, each line contains a transaction hash and an address (for the inputs it means that
+ * the address appeared as input in the transaction).
+ *
+ * <p>
+ * In the <em>standard</em> description, aadresses will be remapped in a compact identifier space by
+ * assigning to each newly seen address a new node number. The list of addresses in order of
+ * appearance is available in {@link #addresses}. Characters following the address will be discarded without a warning.
+ * The transactions will be saved as longs inside the labels, in case of duplicates only the last new label will be
+ * considered, this behaviour can be changed by providing more parameters.
+ *
+ * <p>
+ * Alternatively, you can
+ * {@linkplain #TransactionInputsOutputsASCIIGraph(InputStream, InputStream, Object2LongFunction, int)
+ * provide} an {@link Object2LongFunction Object2LongFunction&lt;byte[]>} with default return value
+ * -1 that will be used to map addresses to node numbers and the number of nodes of the graph (which must be a strict
+ * upper bound for the largest value returned by the function). Note that in principle an {@link Object2IntFunction}
+ * would be sufficient, but we want to make easier using functions from Sux4J such as {@link GOV3Function}.
+ *
+ * <p>
+ * You can provide {@linkplain #TransactionInputsOutputsASCIIGraph(InputStream, InputStream, Object2LongFunction, int, Label, LabelMapping, LabelMergeStrategy)
+ * suitable constructor options} a {@link Label} as prototype, a {@link LabelMapping} as a way to
+ * convert the written labels to object of the prototype's type and a {@link LabelMergeStrategy}
+ * to handle the case of identical arcs with different labels.
+ *
+ * <p>
+ * This class has no load method, and its main method converts an input output pair of files
+ * directly into a {@link BVGraph}.
+ * Run <pre>java it.unimi.dsi.webgraph.labelling.TransactionInputsOutputsASCIIGraph --help</pre> for more information.
+ *
+ * <h2>Memory requirements</h2>
+ *
+ * <p>
+ * To convert addresses to node numbers, instances of this class use a custom map that in the
+ * worst case will require
+ * 19.5&times;2<sup>&lceil;log(4<var>n</var>/3)&rceil;</sup>&nbsp;&le;&nbsp;52<var>n</var> bytes,
+ * where <var>n</var> is the number of distinct identifiers. Storing batches of arcs in memory
+ * requires 8 bytes per arc.
+ */
 
 public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph {
 	/**
@@ -67,7 +112,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	 */
 	public static final LabelMapping DEFAULT_LABEL_MAPPING = (prototype, transaction) -> {
 		long l = Math.abs(Arrays.hashCode(transaction));
-		((MergeableFixedWidthLongListLabel) prototype).value = new long[] { l };
+		((MergeableFixedWidthLongListLabel) prototype).value = new long[]{l};
 		((MergeableFixedWidthLongListLabel) prototype).size = 1;
 		return l;
 	};
@@ -110,15 +155,15 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		this(inputsIs, outputsIs, addressMap, numNodes, labelPrototype, labelMapping, labelMergeStrategy, DEFAULT_BATCH_SIZE, null, null, null);
 	}
 
-	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2LongFunction<byte[]> addressMap, int numNodes, final Label labelPrototype, final LabelMapping labelMapping, final LabelMergeStrategy labelMergeStrategy, final int batchSize, final Statistics statistics, final File tempDir, final ProgressLogger pl) throws IOException {
+	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2LongFunction<byte[]> addressMap, int numNodes, final Label labelPrototype, final LabelMapping labelMapping, final LabelMergeStrategy labelMergeStrategy, final int batchSize, final TransactionAnalytics transactionAnalytics, final File tempDir, final ProgressLogger pl) throws IOException {
 		if (addressMap != null && numNodes < 0) {
 			throw new IllegalArgumentException("Negative number of nodes");
 		}
 
 		ScatteredArcsASCIIGraph.Id2NodeMap map = new ScatteredArcsASCIIGraph.Id2NodeMap();
 
-		final ReadTransactions inputs = new ReadTransactions(new FastBufferedInputStream(inputsIs), addressMap, 0, numNodes, map);
-		final ReadTransactions outputs = new ReadTransactions(new FastBufferedInputStream(outputsIs), addressMap, 0, numNodes, map);
+		final TransactionParser inputs = new TransactionParser(new FastBufferedInputStream(inputsIs), addressMap, 0, numNodes, map);
+		final TransactionParser outputs = new TransactionParser(new FastBufferedInputStream(outputsIs), addressMap, 0, numNodes, map);
 
 		int j = 0;
 		long pairs = 0;
@@ -137,7 +182,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			pl.start("Creating sorted batches...");
 		}
 
-		for (;;) {
+		for (; ; ) {
 			if (DEBUG) System.out.println("input");
 			final IntArrayList inputAddresses = inputs.nextAddresses();
 
@@ -153,8 +198,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 			if (outputAddresses.isEmpty()) {
 				LOGGER.warn("Inconsistency: Couldn't find matching transaction!\n"
-							+ "\tinput at line " + inputs.lineNumber() + ":\t" + inputs.line() + "\n"
-							+ "\toutput at line " + outputs.lineNumber() + ":\t" + outputs.line() + "\n");
+						+ "\tinput at line " + inputs.lineNumber() + ":\t" + inputs.line() + "\n"
+						+ "\toutput at line " + outputs.lineNumber() + ":\t" + outputs.line() + "\n");
 				continue;
 			}
 
@@ -162,20 +207,19 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			byte[] transaction = inputs.transactionBytes();
 			long transactionId = (long) labelMapping.apply(prototype, transaction);
 
-			if (statistics != null) {
-				statistics.update(transactionId, inputAddresses, outputAddresses);
-			}
+			if (transactionAnalytics != null)
+				transactionAnalytics.update(transactionId, inputAddresses, outputAddresses);
 
 			for (int s : inputAddresses) {
 				for (int t : outputAddresses) {
-					if (s == t) {
+					if (s == t)
 						continue;
-					}
 
 					source[j] = s;
 					target[j] = t;
 					start[j] = obs.writtenBits();
-					if (start[j] < 0) throw new ArithmeticException("OutputBitStream too small for the batchSize, try reducing it.");
+					if (start[j] < 0)
+						throw new ArithmeticException("OutputBitStream too small for the batchSize, try reducing it.");
 					prototype.toBitStream(obs, s);
 					j++;
 
@@ -187,9 +231,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 						j = 0;
 					}
 
-					if (pl != null) {
+					if (pl != null)
 						pl.lightUpdate();
-					}
 				}
 			}
 		}
@@ -209,7 +252,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			addresses = map.getIds(tempDir);
 		}
 
-		if (statistics != null) statistics.close();
+		if (transactionAnalytics != null) transactionAnalytics.close();
 
 		source = null;
 		target = null;
@@ -266,9 +309,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		);
 
 		final JSAPResult jsapResult = jsap.parse(args);
-		if (jsap.messagePrinted()) {
+		if (jsap.messagePrinted())
 			System.exit(1);
-		}
 
 		final ProgressLogger pl = new ProgressLogger(LOGGER, jsapResult.getLong("logInterval"), TimeUnit.MILLISECONDS);
 		pl.displayFreeMemory = true;
@@ -276,9 +318,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		String basename = jsapResult.getString("basename");
 
 		String basenameUnderlying = basename + UNDERLYINGGRAPH_SUFFIX;
-		if (jsapResult.contains("basenameUnderlying")) {
+		if (jsapResult.contains("basenameUnderlying"))
 			basenameUnderlying = jsapResult.getString("basenameUnderlying");
-		}
 
 		File inputs = new File(jsapResult.getString("inputs"));
 		if (!inputs.exists()) throw new JSAPException(inputs + " file does not exist");
@@ -287,7 +328,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		if (!outputs.exists()) throw new JSAPException(outputs + " file does not exist");
 
 		int flags = 0;
-		for(final String compressionFlag: jsapResult.getStringArray("comp"))
+		for (final String compressionFlag : jsapResult.getStringArray("comp"))
 			try {
 				flags |= BVGraph.class.getField(compressionFlag).getInt(BVGraph.class);
 			} catch (final Exception notFound) {
@@ -306,9 +347,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		if (jsapResult.userSpecified("addressMap")) {
 			addressMap = (Object2LongFunction<byte[]>) BinIO.loadObject(jsapResult.getString("addressMap"));
 			if (addressMap.size() == -1) {
-				if (!jsapResult.userSpecified("n")) {
+				if (!jsapResult.userSpecified("n"))
 					throw new IllegalArgumentException("You must specify a graph size if you specify a translation function that does not return the size of the key set.");
-				}
 				n = jsapResult.getInt("n");
 			} else {
 				n = addressMap.size();
@@ -344,7 +384,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			pl.logger.info("Building a label mapping function from the transaction map");
 			labelMapping = (prototype, transaction) -> {
 				long l = transactionMap.getLong(transaction);
-				((MergeableFixedWidthLongListLabel) prototype).value = new long[] { l };
+				((MergeableFixedWidthLongListLabel) prototype).value = new long[]{l};
 				((MergeableFixedWidthLongListLabel) prototype).size = 1;
 				return l;
 			};
@@ -358,28 +398,25 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		}
 
 		File tempDir = null;
-		if (jsapResult.userSpecified("tempDir")) {
+		if (jsapResult.userSpecified("tempDir"))
 			tempDir = new File(jsapResult.getString("tempDir"));
-		}
 
 		int batchSize = -1;
-		if (jsapResult.userSpecified("batchSize")) {
+		if (jsapResult.userSpecified("batchSize"))
 			batchSize = jsapResult.getInt("batchSize");
-		}
 
-		Statistics statistics = null;
+		TransactionAnalytics transactionAnalytics = null;
 		if (jsapResult.userSpecified("statistics")) {
 			File statDir = new File(jsapResult.getString("statistics"));
 			statDir.mkdir();
-			statistics = new Statistics(statDir.toPath());
+			transactionAnalytics = new TransactionAnalytics(statDir.toPath());
 		}
 
-		final TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputs.toPath()), Files.newInputStream(outputs.toPath()), addressMap, n, labelPrototype, labelMapping, labelMergeStrategy, batchSize, statistics, tempDir, pl);
+		final TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputs.toPath()), Files.newInputStream(outputs.toPath()), addressMap, n, labelPrototype, labelMapping, labelMergeStrategy, batchSize, transactionAnalytics, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, basename, basenameUnderlying, windowSize, maxRefCount, minIntervalLength, zetaK, flags, pl);
 
-		if (addressMap == null) {
+		if (addressMap == null)
 			BinIO.storeLongs(graph.addresses, basename + IDS_EXTENSION);
-		}
 	}
 
 	@Override
@@ -429,15 +466,26 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		return ms.toString();
 	}
 
-	private static class Statistics implements Closeable {
+	/** Collect analytics on the graph during construction, this class can be expanded at will, the method
+	 * {@link TransactionAnalytics::update} will be called for every transaction.
+	 * This class can be used effectively to gather information on the number of inputs or outputs, before the
+	 * deduplication and the label merge.
+	 */
+
+	private static class TransactionAnalytics implements Closeable {
 		private final BufferedWriter totalInputsOutputs;
 		private final BufferedWriter uniqueInputsOutputs;
 
 		private final MutableString ms = new MutableString();
 
-		public Statistics(Path statisticsDirectory) throws IOException {
+		public TransactionAnalytics(Path statisticsDirectory) throws IOException {
 			totalInputsOutputs = new BufferedWriter(new FileWriter(statisticsDirectory.resolve("total.stat").toFile(), false));
 			uniqueInputsOutputs = new BufferedWriter(new FileWriter(statisticsDirectory.resolve("unique.stat").toFile(), false));
+		}
+
+		private static long uniqueAddressesAmount(final IntArrayList addresses) {
+			if (addresses.isEmpty()) return 0;
+			return new IntOpenHashSet(addresses).size();
 		}
 
 		public void update(long transactionId, IntArrayList inputAddresses, IntArrayList outputAddresses) throws IOException {
@@ -450,7 +498,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			log(uniqueInputsOutputs, transactionId, uniqueInputs, uniqueOutputs);
 		}
 
-		private void log(BufferedWriter dest, long ...data) throws IOException {
+		private void log(BufferedWriter dest, long... data) throws IOException {
 			ms.length(0);
 			for (int i = 0; i < data.length; i++) {
 				ms.append(data[i]);
@@ -458,11 +506,6 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			}
 			ms.append("\n");
 			dest.write(ms.toCharArray());
-		}
-
-		private static long uniqueAddressesAmount(final IntArrayList addresses) {
-			if (addresses.isEmpty()) return 0;
-			return new IntOpenHashSet(addresses).size();
 		}
 
 		@Override
@@ -474,7 +517,17 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		}
 	}
 
-	public static class ReadTransactions {
+	/** Parses files formatted as a list of transactions and addresses, sorted by transaction, without reading the same
+	 *  line multiple lines and with efficient buffer management. Lets you skip to a specific transaction using
+	 *  efficient byte-array representation of the transaction hash (as extracted from the Blockchair.com TSV dumps).
+	 *  The intended use is to pair two instances, one working on the inputs and one on the outputs, and use the one on
+	 *  the inputs for gather the first batch of addresses, then extract the transaction and use it as key on the
+	 *  outputs.
+	 *  The accepted format consists of a single transaction and address per line, separated or padded by any amount of
+	 *  whitespace, but terminated by a single new line.
+	 */
+
+	public static class TransactionParser {
 		private final FastBufferedInputStream stream;
 		private final Object2LongFunction<byte[]> addressMap;
 		private final int from;
@@ -493,15 +546,15 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 		private byte[] previousLine = new byte[1024];
 		private byte[] currentLine = new byte[1024];
 
-		public ReadTransactions(FastBufferedInputStream stream) throws IOException {
+		public TransactionParser(FastBufferedInputStream stream) throws IOException {
 			this(stream, null, 0, Integer.MAX_VALUE, new ScatteredArcsASCIIGraph.Id2NodeMap());
 		}
 
-		public ReadTransactions(FastBufferedInputStream stream, final Object2LongFunction<byte[]> addressMap) throws IOException {
+		public TransactionParser(FastBufferedInputStream stream, final Object2LongFunction<byte[]> addressMap) throws IOException {
 			this(stream, addressMap, 0, Integer.MAX_VALUE, null);
 		}
 
-		public ReadTransactions(FastBufferedInputStream stream, final Object2LongFunction<byte[]> addressMap, final int from, final int to, final ScatteredArcsASCIIGraph.Id2NodeMap map) throws IOException {
+		public TransactionParser(FastBufferedInputStream stream, final Object2LongFunction<byte[]> addressMap, final int from, final int to, final ScatteredArcsASCIIGraph.Id2NodeMap map) throws IOException {
 			this.stream = stream;
 			this.addressMap = addressMap;
 			this.from = from;
@@ -515,9 +568,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 					previousLine = ByteArrays.grow(previousLine, previousLine.length + 1);
 				}
 
-				if (len == -1) {
+				if (len == -1)
 					throw new RuntimeException(stream + " is empty!");
-				}
 				lineLength = start + len;
 			} while (skipWhitespace(previousLine) == -1);
 		}
@@ -569,7 +621,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 				return addresses;
 			}
 
-			for (;;) {
+			for (; ; ) {
 				// Now keep reading lines into currentLine until the transaction matches the one in previousLine
 				offset = 0;
 
@@ -601,8 +653,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 				// Check if transactions match
 				cmp = transaction == null ?
-					Arrays.compare(currentLine, start, offset, previousLine, transactionStart, transactionEnd) :
-					Arrays.compare(currentLine, start, offset, transaction, from, to);
+						Arrays.compare(currentLine, start, offset, previousLine, transactionStart, transactionEnd) :
+						Arrays.compare(currentLine, start, offset, transaction, from, to);
 
 				if (cmp < 0) {
 					if (DEBUG) System.out.println("skipped ");
@@ -643,7 +695,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			}
 
 			addresses.add(addressId);
-			if (DEBUG) System.out.println("a: " + new String(array, start, offset - start) + " (id: " + addressId + ")");
+			if (DEBUG)
+				System.out.println("a: " + new String(array, start, offset - start) + " (id: " + addressId + ")");
 		}
 
 		private int skipWhitespace(final byte[] array) {
