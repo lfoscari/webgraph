@@ -54,16 +54,16 @@ import static it.unimi.dsi.webgraph.labelling.ArcLabelledImmutableGraph.UNDERLYI
 import static it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.getLong;
 
 /**
- * An {@link ArcLabelledImmutableGraph} that corresponds to a labelled graph stored as a list of inputs and outputs of
+ * A {@link CryptocurrencyAddressGraph} that corresponds to a labelled graph stored as a list of inputs and outputs of
  * a cryptocurrency.
  *
  * <p>
- * A file containing the inputs for all transactions and counterpart for the outputs describe a transaction graph. The
+ * A file containing the inputs for all transactions and counterpart for the outputs describe an address graph. The
  * two files follow the same format, each line contains a transaction hash and an address (for the inputs it means that
  * the address appeared as input in the transaction).
  *
  * <p>
- * In the <em>standard</em> description, aadresses will be remapped in a compact identifier space by
+ * In the <em>standard</em> description, addresses will be remapped in a compact identifier space by
  * assigning to each newly seen address a new node number. The list of addresses in order of
  * appearance is available in {@link #addresses}. Characters following the address will be discarded without a warning.
  * The transactions will be saved as longs inside the labels, in case of duplicates only the last new label will be
@@ -71,14 +71,14 @@ import static it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.ge
  *
  * <p>
  * Alternatively, you can
- * {@linkplain #TransactionInputsOutputsASCIIGraph(InputStream, InputStream, Object2LongFunction, int)
+ * {@linkplain #CryptocurrencyAddressGraph(InputStream, InputStream, Object2LongFunction, int)
  * provide} an {@link Object2LongFunction Object2LongFunction&lt;byte[]>} with default return value
  * -1 that will be used to map addresses to node numbers and the number of nodes of the graph (which must be a strict
  * upper bound for the largest value returned by the function). Note that in principle an {@link Object2IntFunction}
  * would be sufficient, but we want to make easier using functions from Sux4J such as {@link GOV3Function}.
  *
  * <p>
- * You can provide {@linkplain #TransactionInputsOutputsASCIIGraph(InputStream, InputStream, Object2LongFunction, int, Label, LabelMapping, LabelMergeStrategy)
+ * You can provide {@linkplain #CryptocurrencyAddressGraph(InputStream, InputStream, Object2LongFunction, int, Label, LabelMapping, LabelMergeStrategy)
  * suitable constructor options} a {@link Label} as prototype, a {@link LabelMapping} as a way to
  * convert the written labels to object of the prototype's type and a {@link LabelMergeStrategy}
  * to handle the case of identical arcs with different labels.
@@ -86,8 +86,7 @@ import static it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.ge
  * <p>
  * This class has no load method, and its main method converts an input output pair of files
  * directly into a {@link BVGraph}.
- * Run <pre>java it.unimi.dsi.webgraph.labelling.TransactionInputsOutputsASCIIGraph --help</pre> for more information.
- *
+ * Run <pre>java it.unimi.dsi.webgraph.labelling.CryptocurrencyAddressGraph --help</pre> for more information.
  * <h2>Memory requirements</h2>
  *
  * <p>
@@ -98,7 +97,7 @@ import static it.unimi.dsi.webgraph.labelling.ScatteredLabelledArcsASCIIGraph.ge
  * requires 8 bytes per arc.
  */
 
-public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph {
+public class CryptocurrencyAddressGraph extends ImmutableSequentialGraph {
 	/**
 	 * The default batch size.
 	 */
@@ -125,7 +124,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	/**
 	 * The default logger.
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(TransactionInputsOutputsASCIIGraph.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(CryptocurrencyAddressGraph.class);
 	/**
 	 * Toggle the debug mode.
 	 */
@@ -143,19 +142,19 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	 */
 	public long[] addresses;
 
-	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs) throws IOException {
+	public CryptocurrencyAddressGraph(final InputStream inputsIs, final InputStream outputsIs) throws IOException {
 		this(inputsIs, outputsIs, null, -1, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING, DEFAULT_LABEL_MERGE);
 	}
 
-	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2LongFunction<byte[]> addressMap, final int numNodes) throws IOException {
+	public CryptocurrencyAddressGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2LongFunction<byte[]> addressMap, final int numNodes) throws IOException {
 		this(inputsIs, outputsIs, addressMap, numNodes, DEFAULT_LABEL_PROTOTYPE, DEFAULT_LABEL_MAPPING, DEFAULT_LABEL_MERGE);
 	}
 
-	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2LongFunction<byte[]> addressMap, final int numNodes, final Label labelPrototype, final LabelMapping labelMapping, final LabelMergeStrategy labelMergeStrategy) throws IOException {
+	public CryptocurrencyAddressGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2LongFunction<byte[]> addressMap, final int numNodes, final Label labelPrototype, final LabelMapping labelMapping, final LabelMergeStrategy labelMergeStrategy) throws IOException {
 		this(inputsIs, outputsIs, addressMap, numNodes, labelPrototype, labelMapping, labelMergeStrategy, DEFAULT_BATCH_SIZE, null, null, null);
 	}
 
-	public TransactionInputsOutputsASCIIGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2LongFunction<byte[]> addressMap, int numNodes, final Label labelPrototype, final LabelMapping labelMapping, final LabelMergeStrategy labelMergeStrategy, final int batchSize, final TransactionAnalytics transactionAnalytics, final File tempDir, final ProgressLogger pl) throws IOException {
+	public CryptocurrencyAddressGraph(final InputStream inputsIs, final InputStream outputsIs, final Object2LongFunction<byte[]> addressMap, int numNodes, final Label labelPrototype, final LabelMapping labelMapping, final LabelMergeStrategy labelMergeStrategy, final int batchSize, final TransactionAnalytics transactionAnalytics, final File tempDir, final ProgressLogger pl) throws IOException {
 		if (addressMap != null && numNodes < 0) {
 			throw new IllegalArgumentException("Negative number of nodes");
 		}
@@ -273,8 +272,8 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 
 	public static void main(final String[] args) throws IllegalArgumentException, SecurityException, IOException, JSAPException, ClassNotFoundException {
 		final SimpleJSAP jsap = new SimpleJSAP(ScatteredLabelledArcsASCIIGraph.class.getName(),
-				"Converts the list of inputs and outputs from a cryptocurrency into a labelled BVGraph. Both inputs" +
-						"and outputs must be written as a list of transaction-address pairs separated by a single tab " +
+				"Converts the list of inputs and outputs from a cryptocurrency into a labelled BVGraph. Both inputs " +
+						"and outputs must be written as a list of transaction-address pairs separated by a single tab" +
 						"character and sorted by transaction, each node is an address and the arcs are labelled with the " +
 						"transactions. The list of addresses in order of appearance will be saved with extension " +
 						"\"IDS_EXTENSION\" unless a translation function has been specified. If a map from transactions " +
@@ -412,7 +411,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 			transactionAnalytics = new TransactionAnalytics(statDir.toPath());
 		}
 
-		final TransactionInputsOutputsASCIIGraph graph = new TransactionInputsOutputsASCIIGraph(Files.newInputStream(inputs.toPath()), Files.newInputStream(outputs.toPath()), addressMap, n, labelPrototype, labelMapping, labelMergeStrategy, batchSize, transactionAnalytics, tempDir, pl);
+		final CryptocurrencyAddressGraph graph = new CryptocurrencyAddressGraph(Files.newInputStream(inputs.toPath()), Files.newInputStream(outputs.toPath()), addressMap, n, labelPrototype, labelMapping, labelMergeStrategy, batchSize, transactionAnalytics, tempDir, pl);
 		BVGraph.storeLabelled(graph.arcLabelledBatchGraph, basename, basenameUnderlying, windowSize, maxRefCount, minIntervalLength, zetaK, flags, pl);
 
 		if (addressMap == null)
@@ -444,7 +443,7 @@ public class TransactionInputsOutputsASCIIGraph extends ImmutableSequentialGraph
 	}
 
 	@Override
-	public TransactionInputsOutputsASCIIGraph copy() {
+	public CryptocurrencyAddressGraph copy() {
 		return this;
 	}
 

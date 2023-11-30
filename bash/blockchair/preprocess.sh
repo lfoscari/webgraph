@@ -5,7 +5,7 @@ set -o pipefail
 
 if [[ "$3" == "" ]]; then
 	echo "$(basename $0) INPUTSDIR OUTPUTSDIR NTHREADS" 1>&2
-	echo "Reads inputs in INPUTSDIR and outputs in OUTPUTSDIR and creates inputs and outputs ready to be parsed, alongside address and transaction maps." 1>&2
+	echo "Reads inputs tsvs in INPUTSDIR and outputs tsvs in OUTPUTSDIR and creates inputs and outputs ready to be parsed to build an address graph, alongside address and transaction maps." 1>&2
 	exit 1
 fi
 
@@ -20,14 +20,14 @@ if [[ -f inputs.tsv ]]; then
 	echo "Inputs already computed"
 else
 	echo "Extracting inputs"
-	bash ~/transactiongraph/bash/blockchair/extract.sh $INPUTSDIR $NTHREADS input > inputs.tsv
+	bash ~/transactiongraph/bash/blockchair/extract.sh $INPUTSDIR $NTHREADS input transaction-address > inputs.tsv
 fi
 
 if [[ -f outputs.tsv ]]; then
 	echo "Outputs already computed"
 else
 	echo "Extracting outputs"
-	bash ~/transactiongraph/bash/blockchair/extract.sh $OUTPUTSDIR $NTHREADS output > outputs.tsv
+	bash ~/transactiongraph/bash/blockchair/extract.sh $OUTPUTSDIR $NTHREADS output transaction-address > outputs.tsv
 fi
 
 if [[ -f addresses.tsv ]]; then

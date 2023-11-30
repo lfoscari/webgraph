@@ -149,7 +149,7 @@ public class ScatteredLabelledArcsASCIIGraph extends ImmutableSequentialGraph {
 	/**
 	 * The default label mapping function.
 	 */
-	public static final LabelMapping DEFAULT_LABEL_MAPPING = (prototype, representation) -> ((GammaCodedIntLabel) prototype).value = Arrays.hashCode(representation);
+	public static final LabelMapping DEFAULT_LABEL_MAPPING = (prototype, representation) -> ((GammaCodedIntLabel) prototype).value = Integer.parseInt(new String(representation));
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ScatteredLabelledArcsASCIIGraph.class);
 	private final static boolean DEBUG = false;

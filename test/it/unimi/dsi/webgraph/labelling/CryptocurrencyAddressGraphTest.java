@@ -24,7 +24,7 @@ import it.unimi.dsi.fastutil.objects.*;
 import it.unimi.dsi.webgraph.ArrayListMutableGraph;
 import it.unimi.dsi.webgraph.ImmutableGraph;
 import it.unimi.dsi.webgraph.WebGraphTestCase;
-import it.unimi.dsi.webgraph.labelling.TransactionInputsOutputsASCIIGraph.TransactionParser;
+import it.unimi.dsi.webgraph.labelling.CryptocurrencyGraph.TransactionParser;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -37,7 +37,7 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
+public class CryptocurrencyGraphTest extends WebGraphTestCase {
 	private static final Object2LongFunction<byte[]> ADDRESS_MAP = (a) -> Long.parseLong(new String((byte[]) a));
 
 	byte[] currentLine;
@@ -59,7 +59,7 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 		}
 	}
 
-	private static Label[][] labels(TransactionInputsOutputsASCIIGraph g) {
+	private static Label[][] labels(CryptocurrencyGraph g) {
 		Label[][] labels = new Label[g.numNodes()][];
 		for (ArcLabelledNodeIterator it = g.arcLabelledBatchGraph.nodeIterator(); it.hasNext();)
 			labels[it.nextInt()] = it.labelArray();
@@ -76,53 +76,53 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 
 	@Test
 	public void testConstructor() throws IOException {
-		TransactionInputsOutputsASCIIGraph g;
+		CryptocurrencyGraph g;
 
-		g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\na 1\na 2"), str2fbais("a 3"));
+		g = new CryptocurrencyGraph(str2fbais("a 0\na 1\na 2"), str2fbais("a 3"));
 		Assert.assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
 		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses);
 
-		g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0"), str2fbais("a 1"));
+		g = new CryptocurrencyGraph(str2fbais("a 0"), str2fbais("a 1"));
 		assertEquals(new ArrayListMutableGraph(2, new int[][] {{0, 1}}).immutableView(), g);
 		assertArrayEquals(new long[] {0, 1}, g.addresses);
 
-		g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\nb 2\nc 3"), str2fbais("a 1"));
+		g = new CryptocurrencyGraph(str2fbais("a 0\nb 2\nc 3"), str2fbais("a 1"));
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 1}}).immutableView(), g);
 		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses);
 
 
-		g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\na 1\na 2"), str2fbais("a 3"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		g = new CryptocurrencyGraph(str2fbais("a 0\na 1\na 2"), str2fbais("a 3"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
 
-		g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0"), str2fbais("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 2);
+		g = new CryptocurrencyGraph(str2fbais("a 0"), str2fbais("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 2);
 		assertEquals(new ArrayListMutableGraph(2, new int[][] {{0, 1}}).immutableView(), g);
 
-		g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\nb 2\nc 3"), str2fbais("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		g = new CryptocurrencyGraph(str2fbais("a 0\nb 2\nc 3"), str2fbais("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 1}}).immutableView(), g);
 	}
 
 	@Test
 	public void testConstructorMissingTransactions() throws IOException {
-		TransactionInputsOutputsASCIIGraph g;
+		CryptocurrencyGraph g;
 
-		g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\na 1\na 2\nb 3"), str2fbais("a 3"));
+		g = new CryptocurrencyGraph(str2fbais("a 0\na 1\na 2\nb 3"), str2fbais("a 3"));
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
 		assertArrayEquals(new long[] {0, 1, 2, 3}, g.addresses);
 
-		g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0"), str2fbais("b 1"));
+		g = new CryptocurrencyGraph(str2fbais("a 0"), str2fbais("b 1"));
 		assertEquals(new ArrayListMutableGraph(1, new int[][] {}).immutableView(), g);
 		assertArrayEquals(new long[] {0}, g.addresses);
 
-		g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\nb 2\nc 3"), str2fbais("b 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		g = new CryptocurrencyGraph(str2fbais("a 0\nb 2\nc 3"), str2fbais("b 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{2, 1}}).immutableView(), g);
 
-		g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\na 1\na 2"), str2fbais("a 3"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		g = new CryptocurrencyGraph(str2fbais("a 0\na 1\na 2"), str2fbais("a 3"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
 
-		g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0"), str2fbais("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 2);
+		g = new CryptocurrencyGraph(str2fbais("a 0"), str2fbais("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 2);
 		assertEquals(new ArrayListMutableGraph(2, new int[][] {{0, 1}}).immutableView(), g);
 
-		g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\nb 2\nc 3"), str2fbais("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
+		g = new CryptocurrencyGraph(str2fbais("a 0\nb 2\nc 3"), str2fbais("a 1"), (bb) -> Integer.parseInt(new String((byte[]) bb)), 4);
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 1}}).immutableView(), g);
 	}
 
@@ -136,11 +136,11 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 		map.put("0".getBytes(), 0);
 		map.put("1".getBytes(), 1);
 		map.put("2".getBytes(), 2);
-		assertEquals(gg, new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\nb 1\nc 2"), str2fbais("a 1\na 2\nb 0\nb 2\nc 0\nc 1"), map, 3));
+		assertEquals(gg, new CryptocurrencyGraph(str2fbais("a 0\nb 1\nc 2"), str2fbais("a 1\na 2\nb 0\nb 2\nc 0\nc 1"), map, 3));
 
 		map.put("-1".getBytes(), 1);
 		map.put("-2".getBytes(), 2);
-		assertEquals(gg, new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\nb -1\nc -2"), str2fbais("a -1\na 2\nb 0\nb 2\nc 0\nc 1"), map, 3));
+		assertEquals(gg, new CryptocurrencyGraph(str2fbais("a 0\nb -1\nc -2"), str2fbais("a -1\na 2\nb 0\nb 2\nc 0\nc 1"), map, 3));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -151,32 +151,32 @@ public class TransactionInputsOutputsASCIIGraphTest extends WebGraphTestCase {
 		map.put("1".getBytes(), 1);
 		map.put("2".getBytes(), 2);
 
-		TransactionInputsOutputsASCIIGraph g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\na 1\na 2"), str2fbais("a 3"), map, 2);
+		CryptocurrencyGraph g = new CryptocurrencyGraph(str2fbais("a 0\na 1\na 2"), str2fbais("a 3"), map, 2);
 		assertEquals(new ArrayListMutableGraph(4, new int[][] {{0, 3}, {1, 3}, {2, 3}}).immutableView(), g);
 	}
 
 	@Test(expected = RuntimeException.class)
 	public void testEmptyStream() throws IOException {
-		TransactionInputsOutputsASCIIGraph g = new TransactionInputsOutputsASCIIGraph(str2fbais(""), str2fbais("Io credo ch'ei credette ch'io credesse"));
+		CryptocurrencyGraph g = new CryptocurrencyGraph(str2fbais(""), str2fbais("Io credo ch'ei credette ch'io credesse"));
 		assertEquals(new ArrayListMutableGraph(0, new int[][] {}).immutableView(), new ArrayListMutableGraph(g).immutableView());
 	}
 
 	@Test(expected = RuntimeException.class)
 	public void testEmptyStream2() throws IOException {
-		TransactionInputsOutputsASCIIGraph g = new TransactionInputsOutputsASCIIGraph(str2fbais("Io credo ch'ei credette ch'io credesse"), str2fbais(""));
+		CryptocurrencyGraph g = new CryptocurrencyGraph(str2fbais("Io credo ch'ei credette ch'io credesse"), str2fbais(""));
 		assertEquals(new ArrayListMutableGraph(0, new int[][] {}).immutableView(), new ArrayListMutableGraph(g).immutableView());
 	}
 
 	@Test()
 	public void duplicateArcs() throws IOException {
-		TransactionInputsOutputsASCIIGraph g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\nb 0"), str2fbais("a 1\nb 1"));
+		CryptocurrencyGraph g = new CryptocurrencyGraph(str2fbais("a 0\nb 0"), str2fbais("a 1\nb 1"));
 		assertEquals(new ArrayListMutableGraph(2, new int[][] {{0, 1}}).immutableView(), new ArrayListMutableGraph(g).immutableView());
 		assertArrayEquals(((MergeableFixedWidthLongListLabel) labels(g)[0][0]).value, new long[] {128, 129});
 	}
 
 	@Test()
 	public void multipleDuplicateArcs() throws IOException {
-		TransactionInputsOutputsASCIIGraph g = new TransactionInputsOutputsASCIIGraph(str2fbais("a 0\nb 0"), str2fbais("a 1\na 2\nb 1\nb 2"), ADDRESS_MAP, 3);
+		CryptocurrencyGraph g = new CryptocurrencyGraph(str2fbais("a 0\nb 0"), str2fbais("a 1\na 2\nb 1\nb 2"), ADDRESS_MAP, 3);
 		assertEquals(new ArrayListMutableGraph(3, new int[][] {{0, 1}, {0, 2}}).immutableView(), new ArrayListMutableGraph(g).immutableView());
 		assertArrayEquals(((MergeableFixedWidthLongListLabel) labels(g)[0][0]).value, new long[] {128, 129});
 		assertArrayEquals(((MergeableFixedWidthLongListLabel) labels(g)[0][1]).value, new long[] {128, 129});
