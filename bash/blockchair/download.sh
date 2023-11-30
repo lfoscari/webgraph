@@ -10,14 +10,14 @@ if [[ "$3" == "" ]]; then
 fi
 
 FILES_DIR=$1 # e.g. "inputs"
-BASE_URL=$2 # e.g. "https://gz.blockchair.com/bitcoin/$FILES_DIR/"
+BASE_URL=$2 # e.g. "https://gz.blockchair.com/bitcoin/inputs/"
 BC_KEY=$3 # e.g. "202101GjMhj8R3FF"
 
 # Ensure BASE_URL ends in a slash
 [[ ${BASE_URL:${#BASE_URL}-1:1} != "/" ]] && BASE_URL="$BASE_URL/"
 
 # Check which tsvs we have already downloaded
-if find $FILES_DIR -name "*.tsv" -mindepth 1 -maxdepth 1 | read; then
+if find $FILES_DIR -mindepth 1 -maxdepth 1 -name "*.tsv" | read; then
   old=($(ls $FILES_DIR/*.tsv | xargs basename))
 else
   old=()
