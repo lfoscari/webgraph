@@ -28,7 +28,7 @@ echo "Downloading updated list of blocks"
 updated=($(curl -# "$BASE_URL?key=$BC_KEY" | sed -n 's/<a href="\(.*tsv\)\.gz">.*/\1/gp'))
 
 # Find the tsvs not already present
-diff=$(echo ${old[@]} ${updated[@]} | tr ' ' '\n' | sort | uniq -u)
+diff=$(echo ${old[@]} ${updated[@]} | tr ' ' '\n' | sort -u)
 echo "Downloading ${#diff[@]} new file(s)"
 
 # Download and unpack them
