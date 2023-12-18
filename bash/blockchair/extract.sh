@@ -67,7 +67,7 @@ for SPLIT in $SPLITS; do
 		if [[ "$TARGET" == "address" ]]; then
 			(tail -q -n+2 $(cat $SPLIT) | cut -f7 | LC_ALL=C sort -S2G >$SPLIT.pipe) &
 		elif [[ "$TARGET" == "transaction" ]]; then
-			(tail -q -n+2 $(cat $SPLIT) | cut -f13 | LC_ALL=C sort -S2G >$SPLIT.pipe) &
+			(tail -q -n+2 $(cat $SPLIT) | cut -f2,13 | awk '{ print $1 "\n" $2 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
     elif [[ "$TARGET" == "transaction-address" ]]; then
 			(tail -q -n+2 $(cat $SPLIT) | cut -f7,13 | awk '{ print $2 "\t" $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
 		fi
