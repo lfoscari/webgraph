@@ -57,9 +57,9 @@ for SPLIT in $SPLITS; do
 	mkfifo $SPLIT.pipe
 	if [[ "$SOURCE" == "output" ]]; then
 		if [[ "$TARGET" == "address" ]]; then
-			(tail -q -n+2 $(cat $SPLIT) | cut -f7,10 | awk '{ if ($2 == 0) print $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
+			(tail -q -n+2 $(cat $SPLIT) | cut -f7 | LC_ALL=C sort -S2G >$SPLIT.pipe) &
 		elif [[ "$TARGET" == "transaction" ]]; then
-			(tail -q -n+2 $(cat $SPLIT) | cut -f2,10 | awk '{ if ($2 == 0) print $1 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
+			(tail -q -n+2 $(cat $SPLIT) | cut -f2 | LC_ALL=C sort -S2G >$SPLIT.pipe) &
 		elif [[ "$TARGET" == "transaction-address" ]]; then
 			(tail -q -n+2 $(cat $SPLIT) | cut -f2,7,10 | awk '{ if ($3 == 0) print $1 "\t" $2 }' | LC_ALL=C sort -S2G >$SPLIT.pipe) &
 		fi
