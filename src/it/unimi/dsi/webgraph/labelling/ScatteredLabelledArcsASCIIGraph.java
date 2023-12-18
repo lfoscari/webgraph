@@ -145,11 +145,11 @@ public class ScatteredLabelledArcsASCIIGraph extends ImmutableSequentialGraph {
 	/**
 	 * The default label prototype.
 	 */
-	public static final Label DEFAULT_LABEL_PROTOTYPE = new GammaCodedIntLabel("FOO");
+	public static final Label DEFAULT_LABEL_PROTOTYPE = new GammaCodedLongLabel("FOO");
 	/**
 	 * The default label mapping function.
 	 */
-	public static final LabelMapping DEFAULT_LABEL_MAPPING = (prototype, representation) -> ((GammaCodedIntLabel) prototype).value = Integer.parseInt(new String(representation));
+	public static final LabelMapping DEFAULT_LABEL_MAPPING = (prototype, representation) -> ((GammaCodedLongLabel) prototype).value = Integer.parseInt(new String(representation));
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ScatteredLabelledArcsASCIIGraph.class);
 	private final static boolean DEBUG = false;
